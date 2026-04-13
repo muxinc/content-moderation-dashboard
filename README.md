@@ -1,18 +1,48 @@
-# Content Moderator
+# Content Moderation Dashboard
 
 A content moderation dashboard for [Mux](https://mux.com) video assets. Automatically analyzes videos for sexual and violent content using the [Mux Robots API](https://docs.mux.com/api-reference/video#tag/Robots), with configurable review/reject thresholds and custom Q&A questions.
 
 Built with [Next.js](https://nextjs.org), [Convex](https://convex.dev), and [Mux](https://mux.com).
 
+## Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmuxinc%2Fcontent-moderation-dashboard&project-name=content-moderation-dashboard&repository-name=content-moderation-dashboard&demo-title=Content%20Moderation%20Dashboard&demo-description=A%20content%20moderation%20dashboard%20for%20Mux%20video%20assets%20using%20the%20Mux%20Robots%20API&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22convex%22%2C%22productSlug%22%3A%22convex%22%2C%22protocol%22%3A%22storage%22%7D%5D)
+
+Clicking the button above will:
+
+1. Clone this repo to your GitHub account
+2. Prompt you to install the **Convex integration** (provisions a Convex project and sets `CONVEX_DEPLOY_KEY` automatically)
+3. Deploy the app to Vercel
+
+### After deploying
+
+Set your Mux credentials as Convex environment variables. You can do this from the [Convex dashboard](https://dashboard.convex.dev) or via the CLI:
+
+```bash
+npx convex env set MUX_TOKEN_ID <your-mux-token-id> --prod
+npx convex env set MUX_TOKEN_SECRET <your-mux-token-secret> --prod
+```
+
+Then configure a Mux webhook in the [Mux dashboard](https://dashboard.mux.com/settings/webhooks) pointing to your Convex HTTP endpoint:
+
+```
+https://<your-project>.convex.site/mux/webhook
+```
+
+Set the webhook signing secret in Convex:
+
+```bash
+npx convex env set MUX_WEBHOOK_SECRET <signing-secret-from-mux-dashboard> --prod
+```
+
 ## What it does
 
-- **Automatic moderation** — when a video is uploaded or a webhook fires for `video.asset.ready`, the app runs a Mux Robots moderation job and stores sexual/violence scores
-- **Custom Q&A questions** — configure yes/no questions (e.g. "Is this an animated video?") that get asked about every video via Mux Robots
-- **Configurable thresholds** — set review and reject thresholds per dimension; videos are classified as Clear, Needs Review, or Auto-reject
-- **Two views** — "All Assets" shows every asset with moderation data joined in; "Moderation Results" is filterable by status (processing, completed, failed, unreviewed, approved, rejected)
-- **Asset detail drawer** — click any row to open a side panel with a Mux video player, full moderation scores, per-frame analysis, and Q&A answers
-- **Backfill** — import existing assets from your Mux environment and run moderation on all of them
-- **Webhook-driven** — uses the Mux CLI webhook forwarder for local dev; in production, configure a webhook endpoint in the Mux dashboard
+- **Automatic moderation** -- when a video is uploaded or a webhook fires for `video.asset.ready`, the app runs a Mux Robots moderation job and stores sexual/violence scores
+- **Custom Q&A questions** -- configure yes/no questions (e.g. "Is this an animated video?") that get asked about every video via Mux Robots
+- **Configurable thresholds** -- set review and reject thresholds per dimension; videos are classified as Clear, Needs Review, or Auto-reject
+- **Asset detail drawer** -- click any row to open a side panel with a Mux video player, full moderation scores, per-frame analysis, and Q&A answers
+- **Backfill** -- import existing assets from your Mux environment and run moderation on all of them
+- **Webhook-driven** -- uses the Mux CLI webhook forwarder for local dev; in production, configure a webhook endpoint in the Mux dashboard
 
 ## Prerequisites
 
@@ -21,13 +51,13 @@ Built with [Next.js](https://nextjs.org), [Convex](https://convex.dev), and [Mux
 - A [Convex](https://convex.dev) account
 - (Optional) [Mux CLI](https://github.com/muxinc/cli) for local webhook forwarding
 
-## Setup
+## Local development
 
 ### 1. Clone and install
 
 ```bash
 git clone <this-repo>
-cd all-purpose-content-moderator/app
+cd content-moderation-dashboard
 npm install
 ```
 
@@ -61,9 +91,32 @@ CONVEX_DEPLOYMENT=dev:<your-project>
 NEXT_PUBLIC_CONVEX_URL=https://<your-project>.convex.cloud
 ```
 
-### 4. Import your existing assets
+### 4. Run the dev servers
 
-Start the dev servers (see below), then either:
+You need three processes running:
+
+**Terminal 1** -- Convex dev server:
+```bash
+npx convex dev
+```
+
+**Terminal 2** -- Next.js dev server:
+```bash
+npm run dev
+```
+
+**Terminal 3** -- Mux webhook forwarder (optional, for receiving real-time webhook events):
+```bash
+mux webhooks listen --forward-to https://<your-project>.convex.site/mux/webhook
+```
+
+The webhook forwarder will print a signing secret -- make sure `MUX_WEBHOOK_SECRET` in Convex matches it.
+
+Then open [http://localhost:3000](http://localhost:3000).
+
+### 5. Import existing assets
+
+Start the dev servers, then either:
 
 - Click **Import Assets** in the header bar, or
 - Run manually:
@@ -74,38 +127,13 @@ npx convex run migrations:backfillMux '{"includeVideoMetadata": true, "runModera
 
 This fetches all assets from your Mux account, syncs them into Convex, and schedules moderation jobs for each one.
 
-## Running locally
-
-You need three processes running:
-
-**Terminal 1** — Convex dev server:
-```bash
-cd app
-npx convex dev
-```
-
-**Terminal 2** — Next.js dev server:
-```bash
-cd app
-npm run dev
-```
-
-**Terminal 3** — Mux webhook forwarder (optional, for receiving real-time webhook events):
-```bash
-mux webhooks listen --forward-to https://<your-project>.convex.site/mux/webhook
-```
-
-The webhook forwarder will print a signing secret — make sure `MUX_WEBHOOK_SECRET` in Convex matches it.
-
-Then open [http://localhost:3000](http://localhost:3000).
-
 ## Configuration
 
 Click **Configuration** in the header to open the settings panel:
 
 ### Thresholds
 
-Set review and reject thresholds (0–100) for each moderation dimension:
+Set review and reject thresholds (0-100) for each moderation dimension:
 
 | Dimension | Review (suggested) | Reject (suggested) |
 |-----------|-------------------|-------------------|
@@ -129,7 +157,6 @@ Answers appear as additional columns in the moderation results table.
 ## Architecture
 
 ```
-app/
 ├── convex/                  # Convex backend
 │   ├── schema.ts            # Database schema
 │   ├── moderation.ts        # Moderation queries & mutations
@@ -162,11 +189,3 @@ app/
 4. In parallel, `runAskQuestions` sends configured Q&A questions to `POST /robots/v1/jobs/ask-questions`
 5. `pollAskQuestions` stores the answers when the job completes
 6. Results appear in the dashboard in real-time (Convex queries are reactive)
-
-## Production deployment
-
-1. Deploy the Convex backend: `npx convex deploy`
-2. Deploy the Next.js app to Vercel (or any host)
-3. Set `NEXT_PUBLIC_CONVEX_URL` in your hosting environment
-4. Configure a Mux webhook in the [dashboard](https://dashboard.mux.com/settings/webhooks) pointing to `https://<your-deployment>.convex.site/mux/webhook`
-5. Set `MUX_WEBHOOK_SECRET` in Convex to the signing secret from the Mux dashboard
