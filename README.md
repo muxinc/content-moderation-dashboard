@@ -6,7 +6,7 @@ Built with [Next.js](https://nextjs.org), [Convex](https://convex.dev), and [Mux
 
 ## Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmuxinc%2Fcontent-moderation-dashboard&project-name=content-moderation-dashboard&repository-name=content-moderation-dashboard&demo-title=Content%20Moderation%20Dashboard&demo-description=A%20content%20moderation%20dashboard%20for%20Mux%20video%20assets%20using%20the%20Mux%20Robots%20API&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22convex%22%2C%22productSlug%22%3A%22convex%22%2C%22protocol%22%3A%22storage%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmuxinc%2Fcontent-moderation-dashboard&project-name=content-moderation-dashboard&repository-name=content-moderation-dashboard&demo-title=Content%20Moderation%20Dashboard&demo-description=A%20content%20moderation%20dashboard%20for%20Mux%20video%20assets%20using%20the%20Mux%20Robots%20API&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22convex%22%2C%22productSlug%22%3A%22convex%22%2C%22protocol%22%3A%22storage%22%7D%5D)
 
 Clicking the button above will:
 
