@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { useQuery } from "convex/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "../../convex/_generated/api";
@@ -34,6 +34,14 @@ const DEFAULT_THRESHOLDS: Thresholds = {
 const PAGE_SIZE = 25;
 
 export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
   const [tab, setTab] = useState<"assets" | "moderation">("moderation");
   const [assetsOffset, setAssetsOffset] = useState(0);
   const [moderationFilter, setModerationFilter] = useState<ModerationFilter>(undefined);
