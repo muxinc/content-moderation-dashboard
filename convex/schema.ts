@@ -85,8 +85,9 @@ export default defineSchema({
   moderationSettings: defineTable({
     sexual: dimensionThresholds,
     violence: dimensionThresholds,
-    autoRejectEnabled: v.optional(v.boolean()),
     rejectedWebhookUrl: v.optional(v.string()),
+    webhookHeaderKey: v.optional(v.string()),
+    webhookHeaderValue: v.optional(v.string()),
     // Q&A rules that trigger rejection: IF {question} answer is {answer} THEN reject
     rejectionRules: v.optional(
       v.array(

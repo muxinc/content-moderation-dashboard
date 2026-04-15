@@ -83,7 +83,7 @@ export function BackfillPanel() {
                       : "Not set"}
                   </p>
                   <p>Q&A questions: {questions?.length ?? 0} configured</p>
-                  <p>Auto-reject: {settings?.autoRejectEnabled ? "Enabled" : "Disabled"}</p>
+                  <p>Auto-reject: {hasRejectThreshold ? "Enabled (threshold set)" : "Disabled (no threshold)"}</p>
                 </div>
 
                 {/* Options */}

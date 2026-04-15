@@ -27,17 +27,17 @@ export function ConfigurationModal({
     violenceReview: Math.round(thresholds.violence.review * 100),
     violenceReject: thresholds.violence.reject != null ? Math.round(thresholds.violence.reject * 100) : ("" as string | number),
   });
-  const [autoRejectEnabled, setAutoRejectEnabled] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookHeaderKey, setWebhookHeaderKey] = useState("");
+  const [webhookHeaderValue, setWebhookHeaderValue] = useState("");
   const [rejectionRules, setRejectionRules] = useState<{ question: string; answer: string }[]>([]);
   const [bypassRules, setBypassRules] = useState<{ question: string; answer: string }[]>([]);
   const [dirty, setDirty] = useState(false);
 
-  // New rule inputs
-  const [newRejectionQuestion, setNewRejectionQuestion] = useState("");
-  const [newRejectionAnswer, setNewRejectionAnswer] = useState("yes");
-  const [newBypassQuestion, setNewBypassQuestion] = useState("");
-  const [newBypassAnswer, setNewBypassAnswer] = useState("yes");
+  // New rule inputs (unified)
+  const [newRuleAction, setNewRuleAction] = useState<"reject" | "bypass">("reject");
+  const [newRuleQuestion, setNewRuleQuestion] = useState("");
+  const [newRuleAnswer, setNewRuleAnswer] = useState("yes");
 
   // Sync from server
   useEffect(() => {
@@ -48,8 +48,9 @@ export function ConfigurationModal({
       violenceReview: Math.round(settings.violence.review * 100),
       violenceReject: settings.violence.reject != null ? Math.round(settings.violence.reject * 100) : "",
     });
-    setAutoRejectEnabled(settings.autoRejectEnabled);
     setWebhookUrl(settings.rejectedWebhookUrl);
+    setWebhookHeaderKey(settings.webhookHeaderKey ?? "");
+    setWebhookHeaderValue(settings.webhookHeaderValue ?? "");
     setRejectionRules(settings.rejectionRules);
     setBypassRules(settings.bypassRules);
     setDirty(false);
@@ -100,8 +101,9 @@ export function ConfigurationModal({
         review: violenceReview / 100,
         reject: typeof local.violenceReject === "number" ? local.violenceReject / 100 : undefined,
       },
-      autoRejectEnabled,
       rejectedWebhookUrl: webhookUrl || undefined,
+      webhookHeaderKey: webhookHeaderKey || undefined,
+      webhookHeaderValue: webhookHeaderValue || undefined,
       rejectionRules,
       bypassRules,
     });
@@ -115,22 +117,20 @@ export function ConfigurationModal({
     setNewQuestion("");
   };
 
-  const addRejectionRule = () => {
-    if (!newRejectionQuestion) return;
-    setRejectionRules((prev) => [...prev, { question: newRejectionQuestion, answer: newRejectionAnswer }]);
-    setNewRejectionQuestion("");
+  const addRule = () => {
+    if (!newRuleQuestion) return;
+    const rule = { question: newRuleQuestion, answer: newRuleAnswer };
+    if (newRuleAction === "reject") {
+      setRejectionRules((prev) => [...prev, rule]);
+    } else {
+      setBypassRules((prev) => [...prev, rule]);
+    }
+    setNewRuleQuestion("");
     setDirty(true);
   };
 
   const removeRejectionRule = (i: number) => {
     setRejectionRules((prev) => prev.filter((_, idx) => idx !== i));
-    setDirty(true);
-  };
-
-  const addBypassRule = () => {
-    if (!newBypassQuestion) return;
-    setBypassRules((prev) => [...prev, { question: newBypassQuestion, answer: newBypassAnswer }]);
-    setNewBypassQuestion("");
     setDirty(true);
   };
 
@@ -208,34 +208,6 @@ export function ConfigurationModal({
             )}
           </section>
 
-          {/* ── Section: Auto-Reject ── */}
-          <section>
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Auto-Reject
-              </h3>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <span className="text-xs text-zinc-500">{autoRejectEnabled ? "Enabled" : "Disabled"}</span>
-                <button
-                  onClick={() => { setAutoRejectEnabled(!autoRejectEnabled); setDirty(true); }}
-                  className={`relative w-9 h-5 rounded-full transition-colors ${
-                    autoRejectEnabled ? "bg-red-500" : "bg-zinc-300 dark:bg-zinc-600"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                      autoRejectEnabled ? "translate-x-4" : ""
-                    }`}
-                  />
-                </button>
-              </label>
-            </div>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
-              When enabled, assets scoring above the reject threshold are automatically rejected.
-              Set reject thresholds above to define the trigger point.
-            </p>
-          </section>
-
           {/* ── Section: Q&A Questions ── */}
           <section>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
@@ -284,22 +256,25 @@ export function ConfigurationModal({
             </div>
           </section>
 
-          {/* ── Section: Rejection Rules ── */}
+          {/* ── Section: Q&A Rules ── */}
           <section>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-              Rejection Rules
+              Q&A Rules
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
-              Reject an asset based on Q&A answers, independent of score thresholds.
-              For example: &quot;Reject if &apos;Is this a professional sports broadcast?&apos; is YES.&quot;
+              Automate decisions based on Q&A answers.
+              <strong className="text-red-500"> Reject</strong> rules trigger rejection regardless of scores.
+              <strong className="text-yellow-500"> Bypass</strong> rules prevent score-based auto-reject when matched.
             </p>
 
-            {rejectionRules.length > 0 && (
+            {/* Existing rules */}
+            {(rejectionRules.length > 0 || bypassRules.length > 0) && (
               <div className="space-y-2 mb-4">
                 {rejectionRules.map((rule, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+                  <div key={`reject-${i}`} className="flex items-center gap-2 text-sm bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2">
+                    <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 uppercase">Reject</span>
                     <span className="flex-1 text-zinc-700 dark:text-zinc-300">
-                      Reject if &quot;{rule.question}&quot; is <strong>{rule.answer}</strong>
+                      if &quot;{rule.question}&quot; is <strong>{rule.answer}</strong>
                     </span>
                     <button
                       onClick={() => removeRejectionRule(i)}
@@ -309,64 +284,11 @@ export function ConfigurationModal({
                     </button>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {questionTexts.length > 0 ? (
-              <div className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <label className="text-xs text-zinc-400 mb-1 block">Question</label>
-                  <select
-                    value={newRejectionQuestion}
-                    onChange={(e) => setNewRejectionQuestion(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400"
-                  >
-                    <option value="">Select a question...</option>
-                    {questionTexts.map((q) => (
-                      <option key={q} value={q}>{q}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="w-24">
-                  <label className="text-xs text-zinc-400 mb-1 block">Answer</label>
-                  <select
-                    value={newRejectionAnswer}
-                    onChange={(e) => setNewRejectionAnswer(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-                <button
-                  onClick={addRejectionRule}
-                  disabled={!newRejectionQuestion}
-                  className="px-3 py-1.5 text-sm font-medium bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-lg hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
-                >
-                  Add
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-400 italic">Add Q&A questions above to create rejection rules.</p>
-            )}
-          </section>
-
-          {/* ── Section: Bypass Rules ── */}
-          <section>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-              Auto-Reject Bypass Rules
-            </h3>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
-              Exceptions to score-based auto-reject. If a bypass rule matches, the asset won&apos;t be auto-rejected even if it exceeds the threshold.
-              For example: &quot;Don&apos;t auto-reject if &apos;Is this a person doing exercise?&apos; is YES.&quot;
-            </p>
-
-            {bypassRules.length > 0 && (
-              <div className="space-y-2 mb-4">
                 {bypassRules.map((rule, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg px-3 py-2">
+                  <div key={`bypass-${i}`} className="flex items-center gap-2 text-sm bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg px-3 py-2">
+                    <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400 uppercase">Bypass</span>
                     <span className="flex-1 text-zinc-700 dark:text-zinc-300">
-                      Don&apos;t auto-reject if &quot;{rule.question}&quot; is <strong>{rule.answer}</strong>
+                      don&apos;t auto-reject if &quot;{rule.question}&quot; is <strong>{rule.answer}</strong>
                     </span>
                     <button
                       onClick={() => removeBypassRule(i)}
@@ -379,13 +301,25 @@ export function ConfigurationModal({
               </div>
             )}
 
+            {/* Add new rule */}
             {questionTexts.length > 0 ? (
               <div className="flex gap-2 items-end">
+                <div className="w-28">
+                  <label className="text-xs text-zinc-400 mb-1 block">Action</label>
+                  <select
+                    value={newRuleAction}
+                    onChange={(e) => setNewRuleAction(e.target.value as "reject" | "bypass")}
+                    className="w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  >
+                    <option value="reject">Reject</option>
+                    <option value="bypass">Bypass</option>
+                  </select>
+                </div>
                 <div className="flex-1">
                   <label className="text-xs text-zinc-400 mb-1 block">Question</label>
                   <select
-                    value={newBypassQuestion}
-                    onChange={(e) => setNewBypassQuestion(e.target.value)}
+                    value={newRuleQuestion}
+                    onChange={(e) => setNewRuleQuestion(e.target.value)}
                     className="w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   >
                     <option value="">Select a question...</option>
@@ -397,8 +331,8 @@ export function ConfigurationModal({
                 <div className="w-24">
                   <label className="text-xs text-zinc-400 mb-1 block">Answer</label>
                   <select
-                    value={newBypassAnswer}
-                    onChange={(e) => setNewBypassAnswer(e.target.value)}
+                    value={newRuleAnswer}
+                    onChange={(e) => setNewRuleAnswer(e.target.value)}
                     className="w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   >
                     <option value="yes">yes</option>
@@ -406,15 +340,15 @@ export function ConfigurationModal({
                   </select>
                 </div>
                 <button
-                  onClick={addBypassRule}
-                  disabled={!newBypassQuestion}
+                  onClick={addRule}
+                  disabled={!newRuleQuestion}
                   className="px-3 py-1.5 text-sm font-medium bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-lg hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
                 >
                   Add
                 </button>
               </div>
             ) : (
-              <p className="text-xs text-zinc-400 italic">Add Q&A questions above to create bypass rules.</p>
+              <p className="text-xs text-zinc-400 italic">Add Q&A questions above to create rules.</p>
             )}
           </section>
 
@@ -427,13 +361,49 @@ export function ConfigurationModal({
               When an asset is rejected (auto-reject, rule-based, or manual), send a POST request to this URL.
               The body includes the asset ID, trigger type, and timestamp.
             </p>
-            <input
-              type="url"
-              value={webhookUrl}
-              onChange={(e) => { setWebhookUrl(e.target.value); setDirty(true); }}
-              placeholder="https://example.com/webhooks/rejected"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400 font-mono"
-            />
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-zinc-400 mb-1 block">URL</label>
+                <input
+                  type="url"
+                  value={webhookUrl}
+                  onChange={(e) => { setWebhookUrl(e.target.value); setDirty(true); }}
+                  placeholder="https://example.com/webhooks/rejected"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400 font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 mb-1 block">Custom Header <span className="text-zinc-500">(optional — for webhook authentication)</span></label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={webhookHeaderKey}
+                    onChange={(e) => { setWebhookHeaderKey(e.target.value); setDirty(true); }}
+                    placeholder="X-Webhook-Secret"
+                    className="w-48 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400 font-mono"
+                  />
+                  <input
+                    type="text"
+                    value={webhookHeaderValue}
+                    onChange={(e) => { setWebhookHeaderValue(e.target.value); setDirty(true); }}
+                    placeholder="secret value"
+                    className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400 font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      const secret = "whsec_" + Array.from(crypto.getRandomValues(new Uint8Array(24)))
+                        .map((b) => b.toString(16).padStart(2, "0")).join("");
+                      setWebhookHeaderValue(secret);
+                      if (!webhookHeaderKey) setWebhookHeaderKey("X-Webhook-Secret");
+                      setDirty(true);
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+                  >
+                    Generate Secret
+                  </button>
+                </div>
+              </div>
+            </div>
           </section>
 
           {/* Save bar at bottom */}

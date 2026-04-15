@@ -461,11 +461,13 @@ export const applyAutoActions = internalMutation({
 
     // Load settings
     const settings = await ctx.db.query("moderationSettings").first();
-    const autoRejectEnabled = settings?.autoRejectEnabled ?? false;
     const rejectionRules = settings?.rejectionRules ?? [];
+    // Auto-reject is enabled if any reject threshold is set
+    const hasRejectThreshold =
+      settings?.sexual.reject != null || settings?.violence.reject != null;
 
-    // If no auto-reject and no rejection rules, nothing to do
-    if (!autoRejectEnabled && rejectionRules.length === 0) {
+    // If no reject thresholds and no rejection rules, nothing to do
+    if (!hasRejectThreshold && rejectionRules.length === 0) {
       await ctx.db.patch(result._id, {
         autoActionApplied: true,
         updatedAt: Date.now(),
@@ -497,7 +499,7 @@ export const applyAutoActions = internalMutation({
 
     // Path 1: Score-based auto-reject
     const scores = result.maxScores;
-    if (autoRejectEnabled && scores) {
+    if (hasRejectThreshold && scores) {
       const sexualReject = settings?.sexual.reject;
       const violenceReject = settings?.violence.reject;
       const exceedsThreshold =

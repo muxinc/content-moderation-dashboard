@@ -4,8 +4,9 @@ import { query, mutation } from "./_generated/server";
 const DEFAULT_SETTINGS = {
   sexual: { review: 0.9, reject: undefined as number | undefined },
   violence: { review: 0.9, reject: undefined as number | undefined },
-  autoRejectEnabled: false,
   rejectedWebhookUrl: "",
+  webhookHeaderKey: "",
+  webhookHeaderValue: "",
   rejectionRules: [] as { question: string; answer: string }[],
   bypassRules: [] as { question: string; answer: string }[],
 };
@@ -18,8 +19,9 @@ export const get = query({
     return {
       sexual: settings.sexual,
       violence: settings.violence,
-      autoRejectEnabled: settings.autoRejectEnabled ?? false,
       rejectedWebhookUrl: settings.rejectedWebhookUrl ?? "",
+      webhookHeaderKey: settings.webhookHeaderKey ?? "",
+      webhookHeaderValue: settings.webhookHeaderValue ?? "",
       rejectionRules: settings.rejectionRules ?? [],
       bypassRules: settings.bypassRules ?? [],
     };
@@ -45,8 +47,9 @@ export const update = mutation({
   args: {
     sexual: dimensionThresholds,
     violence: dimensionThresholds,
-    autoRejectEnabled: v.optional(v.boolean()),
     rejectedWebhookUrl: v.optional(v.string()),
+    webhookHeaderKey: v.optional(v.string()),
+    webhookHeaderValue: v.optional(v.string()),
     rejectionRules: v.optional(v.array(rejectionRuleValidator)),
     bypassRules: v.optional(v.array(bypassRuleValidator)),
   },
@@ -55,8 +58,9 @@ export const update = mutation({
     const data = {
       sexual: args.sexual,
       violence: args.violence,
-      autoRejectEnabled: args.autoRejectEnabled,
       rejectedWebhookUrl: args.rejectedWebhookUrl,
+      webhookHeaderKey: args.webhookHeaderKey,
+      webhookHeaderValue: args.webhookHeaderValue,
       rejectionRules: args.rejectionRules,
       bypassRules: args.bypassRules,
       updatedAt: Date.now(),

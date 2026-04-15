@@ -396,9 +396,13 @@ export const fireRejectedWebhook = internalAction({
     let error: string | undefined;
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (settings.webhookHeaderKey && settings.webhookHeaderValue) {
+        headers[settings.webhookHeaderKey] = settings.webhookHeaderValue;
+      }
       const resp = await fetch(webhookUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           event: "rejected",
           muxAssetId: args.muxAssetId,
