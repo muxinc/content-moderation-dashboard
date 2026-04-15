@@ -20,8 +20,10 @@ export type ReviewFilter =
   | undefined
   | "unreviewed"
   | "approved"
+  | "auto-approved"
   | "auto-rejected"
   | "rejected";
+export type ClassificationFilter = undefined | "pass" | "review" | "reject";
 
 const DEFAULT_THRESHOLDS: Thresholds = {
   sexual: { review: 0.9 },
@@ -37,34 +39,56 @@ export default function Home() {
 }
 
 function HomeContent() {
-  const [jobFilter, setJobFilter] = useState<JobFilter>(undefined);
-  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>(undefined);
   const [showConfig, setShowConfig] = useState(false);
-
-  const moderationData = useQuery(api.moderation.listWithAssets, {
-    limit: 50,
-    jobFilter: jobFilter,
-    reviewFilter: reviewFilter,
-  });
-
-  const settings = useQuery(api.settings.get);
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // All filter state lives in URL query params
+  const jobFilter = (searchParams.get("job") || undefined) as JobFilter;
+  const reviewFilter = (searchParams.get("review") || undefined) as ReviewFilter;
+  const classificationFilter = (searchParams.get("classification") || undefined) as ClassificationFilter;
   const selectedAssetId = searchParams.get("asset");
 
-  const openAsset = useCallback(
-    (muxAssetId: string) => {
+  const setParam = useCallback(
+    (key: string, value: string | undefined) => {
       const params = new URLSearchParams(searchParams.toString());
-      params.set("asset", muxAssetId);
-      router.push(`?${params.toString()}`, { scroll: false });
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+      const qs = params.toString();
+      router.push(qs ? `?${qs}` : "/", { scroll: false });
     },
     [searchParams, router]
   );
 
-  const closeDrawer = useCallback(() => {
+  const setJobFilter = useCallback((f: JobFilter) => setParam("job", f), [setParam]);
+  const setReviewFilter = useCallback((f: ReviewFilter) => setParam("review", f), [setParam]);
+  const setClassificationFilter = useCallback((f: ClassificationFilter) => setParam("classification", f), [setParam]);
+
+  const moderationData = useQuery(api.moderation.listWithAssets, {
+    limit: 50,
+    jobFilter,
+    reviewFilter,
+    classificationFilter,
+  });
+
+  const settings = useQuery(api.settings.get);
+
+  const openAsset = useCallback(
+    (muxAssetId: string) => setParam("asset", muxAssetId),
+    [setParam]
+  );
+
+  const closeDrawer = useCallback(() => setParam("asset", undefined), [setParam]);
+
+  const hasAnyFilter = jobFilter || reviewFilter || classificationFilter;
+  const resetFilters = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("asset");
+    params.delete("job");
+    params.delete("review");
+    params.delete("classification");
     const qs = params.toString();
     router.push(qs ? `?${qs}` : "/", { scroll: false });
   }, [searchParams, router]);
@@ -118,8 +142,12 @@ function HomeContent() {
           thresholds={thresholds}
           jobFilter={jobFilter}
           reviewFilter={reviewFilter}
+          classificationFilter={classificationFilter}
+          hasAnyFilter={!!hasAnyFilter}
           onJobFilterChangeAction={setJobFilter}
           onReviewFilterChangeAction={setReviewFilter}
+          onClassificationFilterChangeAction={setClassificationFilter}
+          onResetFiltersAction={resetFilters}
           onSelectAssetAction={openAsset}
         />
       </main>

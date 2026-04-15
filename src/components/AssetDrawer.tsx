@@ -91,9 +91,9 @@ export function AssetDrawer({
       />
 
       {/* Drawer — wider */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 z-50 overflow-y-auto shadow-2xl">
+      <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 z-50 shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between z-10">
+        <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h2 className="text-lg font-semibold truncate">Asset Details</h2>
           <button
             onClick={onCloseAction}
@@ -103,7 +103,7 @@ export function AssetDrawer({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Video Player */}
           {playbackId ? (
             <div className="rounded-lg overflow-hidden bg-black aspect-video">
@@ -242,6 +242,24 @@ export function AssetDrawer({
                 </div>
               )}
 
+              {/* Summary */}
+              {(moderation.summary || moderation.summaryStatus === "processing") && (
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Summary
+                    </p>
+                  </div>
+                  <div className="px-4 py-3">
+                    {moderation.summaryStatus === "processing" ? (
+                      <p className="text-sm text-zinc-400 italic">Generating summary...</p>
+                    ) : moderation.summary ? (
+                      <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">{moderation.summary}</p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
               {/* Per-frame scores with thumbnails */}
               {moderation.thumbnailScores && moderation.thumbnailScores.length > 0 && (() => {
                 const allFrames = moderation.thumbnailScores.map((ts, i) => {
@@ -339,17 +357,19 @@ export function AssetDrawer({
                             {/* Expanded view — thumbnail only loads here */}
                             {isExpanded && (
                               <div className="px-4 pb-3">
-                                {playbackId && frameTime != null ? (
-                                  <img
-                                    src={`https://image.mux.com/${playbackId}/thumbnail.webp?width=640&height=360&fit_mode=smartcrop&time=${frameTime}`}
-                                    alt={`Frame at ${formatTime(frameTime)}`}
-                                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
-                                  />
-                                ) : (
-                                  <div className="w-full aspect-video rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
-                                    <span className="text-xs text-zinc-400">No thumbnail available — re-run moderation to generate</span>
-                                  </div>
-                                )}
+                                <div className="w-full aspect-video rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                                  {playbackId && frameTime != null ? (
+                                    <img
+                                      src={`https://image.mux.com/${playbackId}/thumbnail.webp?width=640&height=360&fit_mode=smartcrop&time=${frameTime}`}
+                                      alt={`Frame at ${formatTime(frameTime)}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <span className="text-xs text-zinc-400">No thumbnail available — re-run moderation to generate</span>
+                                    </div>
+                                  )}
+                                </div>
                                 <div className="flex gap-6 mt-2">
                                   <ScoreRow label="Sexual" score={ts.sexual} reviewThreshold={thresholds.sexual.review} rejectThreshold={thresholds.sexual.reject} />
                                   <ScoreRow label="Violence" score={ts.violence} reviewThreshold={thresholds.violence.review} rejectThreshold={thresholds.violence.reject} />
@@ -396,49 +416,46 @@ export function AssetDrawer({
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 pt-2">
-                {moderation.status === "completed" && (
-                  <>
-                    <button
-                      onClick={() => setReviewStatus({ muxAssetId, reviewStatus: "approved" })}
-                      disabled={moderation.reviewStatus === "approved"}
-                      className="flex-1 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => setReviewStatus({ muxAssetId, reviewStatus: "rejected" })}
-                      disabled={moderation.reviewStatus === "rejected" || moderation.reviewStatus === "auto-rejected"}
-                      className="flex-1 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => triggerModeration({ muxAssetId })}
-                  className="flex-1 px-4 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  Re-run Moderation
-                </button>
-              </div>
             </div>
           ) : moderation === null ? (
             <div className="text-center py-8">
               <p className="text-sm text-zinc-400">No moderation data yet.</p>
-              <button
-                onClick={() => triggerModeration({ muxAssetId })}
-                className="mt-3 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Run Moderation
-              </button>
             </div>
           ) : (
             <div className="text-center py-8">
               <p className="text-sm text-zinc-400">Loading moderation data...</p>
             </div>
           )}
+        </div>
+
+        {/* Pinned actions footer */}
+        <div className="flex-shrink-0 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4">
+          <div className="flex gap-2">
+            {moderation && moderation.status === "completed" && (
+              <>
+                <button
+                  onClick={() => setReviewStatus({ muxAssetId, reviewStatus: "approved" })}
+                  disabled={moderation.reviewStatus === "approved" || moderation.reviewStatus === "auto-approved"}
+                  className="flex-1 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => setReviewStatus({ muxAssetId, reviewStatus: "rejected" })}
+                  disabled={moderation.reviewStatus === "rejected" || moderation.reviewStatus === "auto-rejected"}
+                  className="flex-1 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Reject
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => triggerModeration({ muxAssetId })}
+              className="flex-1 px-4 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            >
+              {moderation === null ? "Run Moderation" : "Re-run Moderation"}
+            </button>
+          </div>
         </div>
       </div>
     </>
@@ -532,12 +549,14 @@ function ReviewBadge({ reviewStatus }: { reviewStatus: string }) {
   const styles: Record<string, string> = {
     unreviewed: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
     approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "auto-approved": "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
     "auto-rejected": "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 border border-red-200 dark:border-red-800",
     rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   };
   const labels: Record<string, string> = {
     unreviewed: "unreviewed",
     approved: "approved",
+    "auto-approved": "auto-approved",
     "auto-rejected": "auto-rejected",
     rejected: "rejected",
   };

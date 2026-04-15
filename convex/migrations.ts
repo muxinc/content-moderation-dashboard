@@ -132,13 +132,16 @@ export const runBackfill = internalAction({
         });
       }
 
-      // Schedule moderation for ready assets that don't have results yet
+      // Schedule moderation for ready assets that don't have results yet.
+      // Stagger at 3s intervals to stay under Mux Robots 1 RPS limit
+      // (each job creates 3 API calls spaced 1s apart: moderate, ask-questions, summarize).
       if (args.runModeration && asset.status === "ready") {
         const existing = await ctx.runQuery(api.moderation.getByAssetId, {
           muxAssetId: asset.id,
         });
         if (!existing || existing.status === "failed") {
-          await ctx.scheduler.runAfter(0, internal.moderationActions.runModeration, {
+          const delayMs = moderationScheduled * 3000;
+          await ctx.scheduler.runAfter(delayMs, internal.moderationActions.runModeration, {
             muxAssetId: asset.id,
             skipAutoActions: true,
           });

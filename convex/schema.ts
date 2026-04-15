@@ -49,6 +49,7 @@ export default defineSchema({
     reviewStatus: v.union(
       v.literal("unreviewed"),
       v.literal("approved"),
+      v.literal("auto-approved"),
       v.literal("auto-rejected"),
       v.literal("rejected")
     ),
@@ -74,6 +75,16 @@ export default defineSchema({
       )
     ),
     askQuestionsJobId: v.optional(v.string()),
+    // Video summary from Robots summarize job
+    summary: v.optional(v.string()),
+    summaryStatus: v.optional(
+      v.union(
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("failed")
+      )
+    ),
+    summaryJobId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

@@ -10,11 +10,12 @@ export function BackfillPanel() {
   const questions = useQuery(api.questions.list);
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const [maxAssets, setMaxAssets] = useState(50);
 
   const handleImport = async () => {
     setRunning(true);
     try {
-      await backfillMux({ includeVideoMetadata: true, runModeration: true });
+      await backfillMux({ maxAssets, includeVideoMetadata: true, runModeration: true });
     } catch {
       // ignore
     }
@@ -84,9 +85,31 @@ export function BackfillPanel() {
                   <p>Auto-reject: {hasRejectThreshold ? "Enabled (threshold set)" : "Disabled (no threshold)"}</p>
                 </div>
 
+                {/* Number of assets */}
+                <div>
+                  <label htmlFor="maxAssets" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                    Number of assets to import
+                  </label>
+                  <input
+                    id="maxAssets"
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={maxAssets}
+                    onChange={(e) => setMaxAssets(Math.min(200, Math.max(1, Number(e.target.value) || 1)))}
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                  />
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Most recent assets first. Max 200.
+                  </p>
+                </div>
+
                 <div className="text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
-                  <p>Moderation will run on all imported assets.</p>
+                  <p>Moderation will run on imported assets, rate-limited to ~1 job/sec.</p>
                   <p>Auto-reject is skipped for imported assets.</p>
+                  <p className="text-zinc-400">
+                    Estimated time: ~{Math.ceil(maxAssets * 3 / 60)} min for {maxAssets} assets.
+                  </p>
                 </div>
               </div>
 

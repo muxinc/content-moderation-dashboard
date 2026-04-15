@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AssetRow, TableShell } from "./TableShell";
-import type { Thresholds, JobFilter, ReviewFilter } from "@/app/page";
+import type { Thresholds, JobFilter, ReviewFilter, ClassificationFilter } from "@/app/page";
 
 type ModerationItem = {
   moderation: {
@@ -12,7 +12,7 @@ type ModerationItem = {
     muxAssetId: string;
     status: "pending" | "processing" | "completed" | "failed";
     maxScores?: { sexual: number; violence: number };
-    reviewStatus: "unreviewed" | "approved" | "auto-rejected" | "rejected";
+    reviewStatus: "unreviewed" | "approved" | "auto-approved" | "auto-rejected" | "rejected";
     questionAnswers?: Array<{ question: string; answer?: string; confidence: number; reasoning: string; skipped: boolean }>;
   };
   asset: {
@@ -34,6 +34,7 @@ const REVIEW_FILTERS: { value: ReviewFilter; label: string; countKey: string }[]
   { value: undefined, label: "All", countKey: "all" },
   { value: "unreviewed", label: "Unreviewed", countKey: "unreviewed" },
   { value: "approved", label: "Approved", countKey: "approved" },
+  { value: "auto-approved", label: "Auto-Approved", countKey: "autoApproved" },
   { value: "auto-rejected", label: "Auto-Rejected", countKey: "autoRejected" },
   { value: "rejected", label: "Rejected", countKey: "rejected" },
 ];
@@ -43,16 +44,24 @@ export function ModerationResultsView({
   thresholds,
   jobFilter,
   reviewFilter,
+  classificationFilter,
+  hasAnyFilter,
   onJobFilterChangeAction,
   onReviewFilterChangeAction,
+  onClassificationFilterChangeAction,
+  onResetFiltersAction,
   onSelectAssetAction,
 }: {
   data: ModerationItem[] | null;
   thresholds: Thresholds;
   jobFilter: JobFilter;
   reviewFilter: ReviewFilter;
+  classificationFilter: ClassificationFilter;
+  hasAnyFilter: boolean;
   onJobFilterChangeAction: (f: JobFilter) => void;
   onReviewFilterChangeAction: (f: ReviewFilter) => void;
+  onClassificationFilterChangeAction: (f: ClassificationFilter) => void;
+  onResetFiltersAction: () => void;
   onSelectAssetAction: (muxAssetId: string) => void;
 }) {
   const triggerModeration = useAction(api.moderationActions.triggerModeration);
@@ -127,6 +136,16 @@ export function ModerationResultsView({
         })}
         <div className="flex-1" />
         <select
+          value={classificationFilter ?? ""}
+          onChange={(e) => onClassificationFilterChangeAction((e.target.value || undefined) as ClassificationFilter)}
+          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+        >
+          <option value="">All Classifications</option>
+          <option value="pass">Pass</option>
+          <option value="review">Review</option>
+          <option value="reject">Reject</option>
+        </select>
+        <select
           value={jobFilter ?? ""}
           onChange={(e) => onJobFilterChangeAction((e.target.value || undefined) as JobFilter)}
           className="px-3 py-1.5 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
@@ -140,6 +159,14 @@ export function ModerationResultsView({
             );
           })}
         </select>
+        {hasAnyFilter && (
+          <button
+            onClick={onResetFiltersAction}
+            className="px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+          >
+            Reset
+          </button>
+        )}
       </div>
 
       {/* Bulk action bar */}

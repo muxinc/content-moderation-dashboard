@@ -177,11 +177,13 @@ export function ConfigurationModal({
               Thresholds
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
-              Scores 0–100.{" "}
-              <span className="text-yellow-600 dark:text-yellow-400">Review</span>
-              {" = needs human review. "}
-              <span className="text-red-600 dark:text-red-400">Reject</span>
-              {" = auto-reject threshold (leave blank to disable)."}
+              Scores 0–100. Assets below the{" "}
+              <span className="text-emerald-600 dark:text-emerald-400">review</span>
+              {" threshold are auto-approved. Assets between review and reject need "}
+              <span className="text-yellow-600 dark:text-yellow-400">human review</span>
+              {". Assets above the "}
+              <span className="text-red-600 dark:text-red-400">reject</span>
+              {" threshold are auto-rejected (leave blank to disable)."}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <DimensionInputs

@@ -76,10 +76,16 @@ export const runModeration = internalAction({
         }
       );
 
-      // Also kick off ask-questions if there are configured questions
-      await ctx.scheduler.runAfter(0, internal.moderationActions.runAskQuestions, {
+      // Also kick off ask-questions if there are configured questions.
+      // Delay 1s to stagger Robots API calls (1 RPS limit).
+      await ctx.scheduler.runAfter(1000, internal.moderationActions.runAskQuestions, {
         muxAssetId: args.muxAssetId,
         skipAutoActions: args.skipAutoActions,
+      });
+
+      // Kick off summarize job. Delay 2s to stay under 1 RPS.
+      await ctx.scheduler.runAfter(2000, internal.moderationActions.runSummary, {
+        muxAssetId: args.muxAssetId,
       });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -370,6 +376,137 @@ export const pollAskQuestions = internalAction({
       await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
         muxAssetId: args.muxAssetId,
         skipAutoActions: args.skipAutoActions,
+      });
+    }
+  },
+});
+
+// ─── Rejected webhook ───
+
+// ─── Summarize job ───
+
+export const runSummary = internalAction({
+  args: {
+    muxAssetId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.runMutation(internal.moderation.setSummaryStatus, {
+      muxAssetId: args.muxAssetId,
+      summaryStatus: "processing",
+    });
+
+    try {
+      const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/summarize`, {
+        method: "POST",
+        headers: {
+          Authorization: muxAuthHeader(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          parameters: {
+            asset_id: args.muxAssetId,
+          },
+        }),
+      });
+
+      if (!resp.ok) {
+        const body = await resp.text();
+        console.error(`Summarize API error (${resp.status}): ${body}`);
+        await ctx.runMutation(internal.moderation.setSummaryStatus, {
+          muxAssetId: args.muxAssetId,
+          summaryStatus: "failed",
+        });
+        return;
+      }
+
+      const data = await resp.json();
+      const jobId = data.data.id as string;
+
+      await ctx.scheduler.runAfter(
+        POLL_INTERVAL_MS,
+        internal.moderationActions.pollSummary,
+        {
+          muxAssetId: args.muxAssetId,
+          jobId,
+          attempt: 1,
+        }
+      );
+    } catch (e: unknown) {
+      console.error(`Summarize failed for ${args.muxAssetId}:`, e);
+      await ctx.runMutation(internal.moderation.setSummaryStatus, {
+        muxAssetId: args.muxAssetId,
+        summaryStatus: "failed",
+      });
+    }
+  },
+});
+
+export const pollSummary = internalAction({
+  args: {
+    muxAssetId: v.string(),
+    jobId: v.string(),
+    attempt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const resp = await fetch(
+        `${MUX_BASE_URL}/robots/v1/jobs/summarize/${args.jobId}`,
+        { headers: { Authorization: muxAuthHeader() } }
+      );
+
+      if (!resp.ok) {
+        console.error(`Summarize poll error (${resp.status})`);
+        await ctx.runMutation(internal.moderation.setSummaryStatus, {
+          muxAssetId: args.muxAssetId,
+          summaryStatus: "failed",
+        });
+        return;
+      }
+
+      const job = (await resp.json()).data;
+
+      if (job.status === "completed") {
+        const summary = job.outputs?.summary ?? job.outputs?.text ?? "";
+        await ctx.runMutation(internal.moderation.updateSummary, {
+          muxAssetId: args.muxAssetId,
+          summary,
+          summaryJobId: args.jobId,
+        });
+        return;
+      }
+
+      if (job.status === "errored") {
+        console.error(`Summarize job errored for ${args.muxAssetId}`);
+        await ctx.runMutation(internal.moderation.setSummaryStatus, {
+          muxAssetId: args.muxAssetId,
+          summaryStatus: "failed",
+        });
+        return;
+      }
+
+      if (args.attempt >= MAX_POLL_ATTEMPTS) {
+        console.error(`Summarize job timed out for ${args.muxAssetId}`);
+        await ctx.runMutation(internal.moderation.setSummaryStatus, {
+          muxAssetId: args.muxAssetId,
+          summaryStatus: "failed",
+        });
+        return;
+      }
+
+      await ctx.scheduler.runAfter(
+        POLL_INTERVAL_MS,
+        internal.moderationActions.pollSummary,
+        {
+          muxAssetId: args.muxAssetId,
+          jobId: args.jobId,
+          attempt: args.attempt + 1,
+        }
+      );
+    } catch (e: unknown) {
+      console.error(`Summarize poll failed for ${args.muxAssetId}:`, e);
+      await ctx.runMutation(internal.moderation.setSummaryStatus, {
+        muxAssetId: args.muxAssetId,
+        summaryStatus: "failed",
       });
     }
   },

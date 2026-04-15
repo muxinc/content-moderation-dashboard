@@ -18,7 +18,7 @@ type ModerationData = {
   muxAssetId: string;
   status: "pending" | "processing" | "completed" | "failed";
   maxScores?: { sexual: number; violence: number };
-  reviewStatus: "unreviewed" | "approved" | "auto-rejected" | "rejected";
+  reviewStatus: "unreviewed" | "approved" | "auto-approved" | "auto-rejected" | "rejected";
   questionAnswers?: QuestionAnswer[];
 } | null;
 
@@ -267,7 +267,7 @@ export function AssetRow({
             <>
               <button
                 onClick={() => setReviewStatus({ muxAssetId, reviewStatus: "approved" })}
-                disabled={moderation.reviewStatus === "approved"}
+                disabled={moderation.reviewStatus === "approved" || moderation.reviewStatus === "auto-approved"}
                 className="px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 Approve
@@ -336,12 +336,14 @@ function ReviewBadge({ reviewStatus }: { reviewStatus: string }) {
   const styles: Record<string, string> = {
     unreviewed: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
     approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "auto-approved": "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
     "auto-rejected": "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 border border-red-200 dark:border-red-800",
     rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   };
   const labels: Record<string, string> = {
     unreviewed: "unreviewed",
     approved: "approved",
+    "auto-approved": "auto-approved",
     "auto-rejected": "auto-rejected",
     rejected: "rejected",
   };
