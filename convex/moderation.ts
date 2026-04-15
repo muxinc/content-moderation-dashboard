@@ -4,7 +4,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 
 // ---------- Queries ----------
 
@@ -385,6 +385,13 @@ export const setReviewStatus = mutation({
       reviewedAt: Date.now(),
       updatedAt: Date.now(),
     });
+    // Fire rejected webhook on manual rejection
+    if (args.reviewStatus === "rejected") {
+      await ctx.scheduler.runAfter(0, internal.moderationActions.fireRejectedWebhook, {
+        muxAssetId: args.muxAssetId,
+        trigger: "manual" as const,
+      });
+    }
   },
 });
 
@@ -409,6 +416,12 @@ export const bulkSetReviewStatus = mutation({
         reviewedAt: Date.now(),
         updatedAt: Date.now(),
       });
+      if (args.reviewStatus === "rejected") {
+        await ctx.scheduler.runAfter(0, internal.moderationActions.fireRejectedWebhook, {
+          muxAssetId,
+          trigger: "manual" as const,
+        });
+      }
     }
   },
 });
@@ -526,11 +539,11 @@ export const applyAutoActions = internalMutation({
         reviewedAt: Date.now(),
         updatedAt: Date.now(),
       });
-      // TODO: Phase 5 — fire rejected webhook here
-      // await ctx.scheduler.runAfter(0, internal.moderationActions.fireRejectedWebhook, {
-      //   muxAssetId: args.muxAssetId, trigger: rejectTrigger,
-      // });
-      void rejectTrigger; // will be used when webhook is implemented
+      // Fire rejected webhook (reads URL from settings, logs result)
+      await ctx.scheduler.runAfter(0, internal.moderationActions.fireRejectedWebhook, {
+        muxAssetId: args.muxAssetId,
+        trigger: rejectTrigger,
+      });
       return;
     }
 

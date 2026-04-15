@@ -1,7 +1,7 @@
 "use node";
 
 import { v } from "convex/values";
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
 const MUX_BASE_URL = "https://api.mux.com";
@@ -372,6 +372,77 @@ export const pollAskQuestions = internalAction({
         skipAutoActions: args.skipAutoActions,
       });
     }
+  },
+});
+
+// ─── Rejected webhook ───
+
+export const fireRejectedWebhook = internalAction({
+  args: {
+    muxAssetId: v.string(),
+    trigger: v.union(
+      v.literal("auto-reject"),
+      v.literal("rule"),
+      v.literal("manual")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const settings = await ctx.runQuery(api.settings.get);
+    const webhookUrl = settings.rejectedWebhookUrl;
+    if (!webhookUrl) return;
+
+    let httpStatus: number | undefined;
+    let responseBody: string | undefined;
+    let error: string | undefined;
+
+    try {
+      const resp = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "rejected",
+          muxAssetId: args.muxAssetId,
+          trigger: args.trigger,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      httpStatus = resp.status;
+      responseBody = await resp.text();
+    } catch (e: unknown) {
+      error = e instanceof Error ? e.message : "Unknown error";
+    }
+
+    await ctx.runMutation(internal.moderationActions.logWebhook, {
+      muxAssetId: args.muxAssetId,
+      event: "rejected",
+      trigger: args.trigger,
+      webhookUrl,
+      httpStatus,
+      responseBody,
+      error,
+    });
+  },
+});
+
+export const logWebhook = internalMutation({
+  args: {
+    muxAssetId: v.string(),
+    event: v.literal("rejected"),
+    trigger: v.union(
+      v.literal("auto-reject"),
+      v.literal("rule"),
+      v.literal("manual")
+    ),
+    webhookUrl: v.string(),
+    httpStatus: v.optional(v.number()),
+    responseBody: v.optional(v.string()),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("webhookLog", {
+      ...args,
+      createdAt: Date.now(),
+    });
   },
 });
 
