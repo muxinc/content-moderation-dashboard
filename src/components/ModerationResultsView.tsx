@@ -101,58 +101,45 @@ export function ModerationResultsView({
 
   return (
     <div className="space-y-4">
-      {/* Filter rows */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 w-16">Job</span>
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {REVIEW_FILTERS.map(({ value, label, countKey }) => {
+          const active = reviewFilter === value;
+          const count = counts?.[countKey as keyof typeof counts];
+          return (
+            <button
+              key={label}
+              onClick={() => onReviewFilterChangeAction(value)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                active
+                  ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100"
+                  : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              }`}
+            >
+              {label}
+              {count != null && (
+                <span className={`ml-1.5 ${active ? "opacity-70" : "text-zinc-400 dark:text-zinc-500"}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+        <div className="flex-1" />
+        <select
+          value={jobFilter ?? ""}
+          onChange={(e) => onJobFilterChangeAction((e.target.value || undefined) as JobFilter)}
+          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+        >
           {JOB_FILTERS.map(({ value, label, countKey }) => {
-            const active = jobFilter === value;
             const count = counts?.[countKey as keyof typeof counts];
             return (
-              <button
-                key={label}
-                onClick={() => onJobFilterChangeAction(value)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                  active
-                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100"
-                    : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                }`}
-              >
-                {label}
-                {count != null && (
-                  <span className={`ml-1.5 ${active ? "opacity-70" : "text-zinc-400 dark:text-zinc-500"}`}>
-                    {count}
-                  </span>
-                )}
-              </button>
+              <option key={label} value={value ?? ""}>
+                {label === "All" ? "All Jobs" : label}{count != null ? ` (${count})` : ""}
+              </option>
             );
           })}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 w-16">Review</span>
-          {REVIEW_FILTERS.map(({ value, label, countKey }) => {
-            const active = reviewFilter === value;
-            const count = counts?.[countKey as keyof typeof counts];
-            return (
-              <button
-                key={label}
-                onClick={() => onReviewFilterChangeAction(value)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                  active
-                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100"
-                    : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                }`}
-              >
-                {label}
-                {count != null && (
-                  <span className={`ml-1.5 ${active ? "opacity-70" : "text-zinc-400 dark:text-zinc-500"}`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        </select>
       </div>
 
       {/* Bulk action bar */}

@@ -1,7 +1,7 @@
 "use node";
 
 import { v } from "convex/values";
-import { action, internalAction, internalMutation } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
 const MUX_BASE_URL = "https://api.mux.com";
@@ -416,7 +416,7 @@ export const fireRejectedWebhook = internalAction({
       error = e instanceof Error ? e.message : "Unknown error";
     }
 
-    await ctx.runMutation(internal.moderationActions.logWebhook, {
+    await ctx.runMutation(internal.moderation.logWebhook, {
       muxAssetId: args.muxAssetId,
       event: "rejected",
       trigger: args.trigger,
@@ -424,28 +424,6 @@ export const fireRejectedWebhook = internalAction({
       httpStatus,
       responseBody,
       error,
-    });
-  },
-});
-
-export const logWebhook = internalMutation({
-  args: {
-    muxAssetId: v.string(),
-    event: v.literal("rejected"),
-    trigger: v.union(
-      v.literal("auto-reject"),
-      v.literal("rule"),
-      v.literal("manual")
-    ),
-    webhookUrl: v.string(),
-    httpStatus: v.optional(v.number()),
-    responseBody: v.optional(v.string()),
-    error: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("webhookLog", {
-      ...args,
-      createdAt: Date.now(),
     });
   },
 });

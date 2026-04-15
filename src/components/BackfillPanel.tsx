@@ -10,13 +10,11 @@ export function BackfillPanel() {
   const questions = useQuery(api.questions.list);
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
-  const [runModeration, setRunModeration] = useState(true);
-  const [includeMetadata, setIncludeMetadata] = useState(true);
 
   const handleImport = async () => {
     setRunning(true);
     try {
-      await backfillMux({ includeVideoMetadata: includeMetadata, runModeration });
+      await backfillMux({ includeVideoMetadata: true, runModeration: true });
     } catch {
       // ignore
     }
@@ -86,29 +84,9 @@ export function BackfillPanel() {
                   <p>Auto-reject: {hasRejectThreshold ? "Enabled (threshold set)" : "Disabled (no threshold)"}</p>
                 </div>
 
-                {/* Options */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={runModeration}
-                      onChange={(e) => setRunModeration(e.target.checked)}
-                      className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600"
-                    />
-                    <div>
-                      <span className="text-sm text-zinc-700 dark:text-zinc-300">Run moderation on imported assets</span>
-                      <p className="text-xs text-zinc-400">Auto-reject is skipped for imported assets</p>
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeMetadata}
-                      onChange={(e) => setIncludeMetadata(e.target.checked)}
-                      className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600"
-                    />
-                    <span className="text-sm text-zinc-700 dark:text-zinc-300">Include video metadata</span>
-                  </label>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
+                  <p>Moderation will run on all imported assets.</p>
+                  <p>Auto-reject is skipped for imported assets.</p>
                 </div>
               </div>
 

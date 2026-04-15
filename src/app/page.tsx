@@ -5,7 +5,6 @@ import { useQuery } from "convex/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "../../convex/_generated/api";
 import { UploadForm } from "@/components/UploadForm";
-import { AllAssetsView } from "@/components/AllAssetsView";
 import { ModerationResultsView } from "@/components/ModerationResultsView";
 import { BackfillPanel } from "@/components/BackfillPanel";
 import { AssetDrawer } from "@/components/AssetDrawer";
@@ -29,8 +28,6 @@ const DEFAULT_THRESHOLDS: Thresholds = {
   violence: { review: 0.9 },
 };
 
-const PAGE_SIZE = 25;
-
 export default function Home() {
   return (
     <Suspense>
@@ -40,16 +37,9 @@ export default function Home() {
 }
 
 function HomeContent() {
-  const [tab, setTab] = useState<"assets" | "moderation">("moderation");
-  const [assetsOffset, setAssetsOffset] = useState(0);
   const [jobFilter, setJobFilter] = useState<JobFilter>(undefined);
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>(undefined);
   const [showConfig, setShowConfig] = useState(false);
-
-  const assetsData = useQuery(api.videoQueries.listAssetsWithModeration, {
-    limit: PAGE_SIZE,
-    offset: assetsOffset,
-  });
 
   const moderationData = useQuery(api.moderation.listWithAssets, {
     limit: 50,
@@ -115,7 +105,6 @@ function HomeContent() {
         </div>
       </header>
 
-      {/* Configuration modal */}
       {showConfig && (
         <ConfigurationModal
           thresholds={thresholds}
@@ -124,51 +113,15 @@ function HomeContent() {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-4">
-
-        {/* Tab switcher */}
-        <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
-          <button
-            onClick={() => setTab("assets")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === "assets"
-                ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
-                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
-          >
-            All Assets
-          </button>
-          <button
-            onClick={() => setTab("moderation")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === "moderation"
-                ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
-                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
-          >
-            Moderation Results
-          </button>
-        </div>
-
-        {tab === "assets" ? (
-          <AllAssetsView
-            data={assetsData ?? null}
-            thresholds={thresholds}
-            onSelectAssetAction={openAsset}
-            offset={assetsOffset}
-            onPageChangeAction={setAssetsOffset}
-            pageSize={PAGE_SIZE}
-          />
-        ) : (
-          <ModerationResultsView
-            data={moderationData ?? null}
-            thresholds={thresholds}
-            jobFilter={jobFilter}
-            reviewFilter={reviewFilter}
-            onJobFilterChangeAction={setJobFilter}
-            onReviewFilterChangeAction={setReviewFilter}
-            onSelectAssetAction={openAsset}
-          />
-        )}
+        <ModerationResultsView
+          data={moderationData ?? null}
+          thresholds={thresholds}
+          jobFilter={jobFilter}
+          reviewFilter={reviewFilter}
+          onJobFilterChangeAction={setJobFilter}
+          onReviewFilterChangeAction={setReviewFilter}
+          onSelectAssetAction={openAsset}
+        />
       </main>
 
       {selectedAssetId && (
