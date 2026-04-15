@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery, useAction } from "convex/react";
+import { useState } from "react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AssetRow, TableShell } from "./TableShell";
 import type { Thresholds, JobFilter, ReviewFilter } from "@/app/page";
@@ -55,9 +56,48 @@ export function ModerationResultsView({
   onSelectAssetAction: (muxAssetId: string) => void;
 }) {
   const triggerModeration = useAction(api.moderationActions.triggerModeration);
+  const bulkSetReviewStatus = useMutation(api.moderation.bulkSetReviewStatus);
   const counts = useQuery(api.moderation.counts);
   const questions = useQuery(api.questions.list);
   const questionTexts = questions?.map((q) => q.question) ?? [];
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const allAssetIds = data?.map((d) => d.moderation.muxAssetId) ?? [];
+  const allSelected = allAssetIds.length > 0 && allAssetIds.every((id) => selected.has(id));
+
+  const toggleOne = (muxAssetId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(muxAssetId)) next.delete(muxAssetId);
+      else next.add(muxAssetId);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(allAssetIds));
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    await bulkSetReviewStatus({ muxAssetIds: [...selected], reviewStatus: "approved" });
+    setSelected(new Set());
+  };
+
+  const handleBulkReject = async () => {
+    await bulkSetReviewStatus({ muxAssetIds: [...selected], reviewStatus: "rejected" });
+    setSelected(new Set());
+  };
+
+  const handleBulkRerun = async () => {
+    for (const id of selected) {
+      await triggerModeration({ muxAssetId: id });
+    }
+    setSelected(new Set());
+  };
 
   return (
     <div className="space-y-4">
@@ -115,6 +155,40 @@ export function ModerationResultsView({
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-4 py-2.5">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            {selected.size} selected
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={handleBulkApprove}
+            className="px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+          >
+            Bulk Approve
+          </button>
+          <button
+            onClick={handleBulkReject}
+            className="px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+          >
+            Bulk Reject
+          </button>
+          <button
+            onClick={handleBulkRerun}
+            className="px-3 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            Bulk Re-run
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {!data ? (
         <div className="text-center py-12 text-zinc-400 text-sm">Loading...</div>
       ) : data.length === 0 ? (
@@ -124,7 +198,7 @@ export function ModerationResultsView({
           </p>
         </div>
       ) : (
-        <TableShell questions={questionTexts}>
+        <TableShell questions={questionTexts} selectable onSelectAllAction={toggleAll} allSelected={allSelected}>
           {data.map(({ moderation, asset }) => (
             <AssetRow
               key={moderation._id}
@@ -134,6 +208,9 @@ export function ModerationResultsView({
               moderation={moderation}
               thresholds={thresholds}
               questions={questionTexts}
+              selectable
+              selected={selected.has(moderation.muxAssetId)}
+              onToggleSelectAction={() => toggleOne(moderation.muxAssetId)}
               onClickAction={() => onSelectAssetAction(moderation.muxAssetId)}
               onModerateAction={() => triggerModeration({ muxAssetId: moderation.muxAssetId })}
             />

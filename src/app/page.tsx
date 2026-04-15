@@ -8,9 +8,8 @@ import { UploadForm } from "@/components/UploadForm";
 import { AllAssetsView } from "@/components/AllAssetsView";
 import { ModerationResultsView } from "@/components/ModerationResultsView";
 import { BackfillPanel } from "@/components/BackfillPanel";
-import { ThresholdSettings } from "@/components/ThresholdSettings";
 import { AssetDrawer } from "@/components/AssetDrawer";
-import { QuestionManager } from "@/components/QuestionManager";
+import { ConfigurationModal } from "@/components/ConfigurationModal";
 
 export type Thresholds = {
   sexual: { review: number; reject?: number };
@@ -116,27 +115,15 @@ function HomeContent() {
         </div>
       </header>
 
+      {/* Configuration modal */}
+      {showConfig && (
+        <ConfigurationModal
+          thresholds={thresholds}
+          onCloseAction={() => setShowConfig(false)}
+        />
+      )}
+
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-4">
-        {/* Collapsible configuration panel */}
-        {showConfig && (
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Configuration
-              </h2>
-              <button
-                onClick={() => setShowConfig(false)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm"
-              >
-                Close
-              </button>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ThresholdSettings thresholds={thresholds} />
-              <QuestionManager />
-            </div>
-          </div>
-        )}
 
         {/* Tab switcher */}
         <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800">

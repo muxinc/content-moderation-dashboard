@@ -66,15 +66,31 @@ function rowBg(moderation: ModerationData, thresholds: Thresholds): string {
 export function TableShell({
   children,
   questions,
+  selectable,
+  onSelectAllAction,
+  allSelected,
 }: {
   children: ReactNode;
   questions?: string[];
+  selectable?: boolean;
+  onSelectAllAction?: () => void;
+  allSelected?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+            {selectable && (
+              <th className="px-3 py-2.5 w-8">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={onSelectAllAction}
+                  className="w-3.5 h-3.5 rounded border-zinc-300 dark:border-zinc-600 cursor-pointer"
+                />
+              </th>
+            )}
             <th className="text-left px-4 py-2.5 font-medium text-zinc-500 dark:text-zinc-400 w-[200px]">Asset</th>
             <th className="text-left px-4 py-2.5 font-medium text-zinc-500 dark:text-zinc-400">Status</th>
             <th className="text-center px-4 py-2.5 font-medium text-zinc-500 dark:text-zinc-400">Sexual</th>
@@ -108,6 +124,9 @@ export function AssetRow({
   moderation,
   thresholds,
   questions,
+  selectable,
+  selected,
+  onToggleSelectAction,
   onClickAction,
   onModerateAction,
 }: {
@@ -117,6 +136,9 @@ export function AssetRow({
   moderation: ModerationData;
   thresholds: Thresholds;
   questions?: string[];
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelectAction?: () => void;
   onClickAction: () => void;
   onModerateAction: () => void;
 }) {
@@ -139,6 +161,16 @@ export function AssetRow({
       className={`${rowBg(moderation, thresholds)} hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer`}
       onClick={onClickAction}
     >
+      {selectable && (
+        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelectAction}
+            className="w-3.5 h-3.5 rounded border-zinc-300 dark:border-zinc-600 cursor-pointer"
+          />
+        </td>
+      )}
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-3">
           {thumbUrl ? (

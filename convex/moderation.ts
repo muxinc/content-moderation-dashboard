@@ -388,6 +388,31 @@ export const setReviewStatus = mutation({
   },
 });
 
+export const bulkSetReviewStatus = mutation({
+  args: {
+    muxAssetIds: v.array(v.string()),
+    reviewStatus: v.union(
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("unreviewed")
+    ),
+  },
+  handler: async (ctx, args) => {
+    for (const muxAssetId of args.muxAssetIds) {
+      const existing = await ctx.db
+        .query("moderationResults")
+        .withIndex("by_mux_asset_id", (q) => q.eq("muxAssetId", muxAssetId))
+        .first();
+      if (!existing) continue;
+      await ctx.db.patch(existing._id, {
+        reviewStatus: args.reviewStatus,
+        reviewedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
 // ---------- Auto-Action Coordinator ----------
 
 /**
