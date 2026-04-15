@@ -43,6 +43,7 @@ export function AssetDrawer({
   const setReviewStatus = useMutation(api.moderation.setReviewStatus);
   const triggerModeration = useAction(api.moderationActions.triggerModeration);
   const [expandedFrame, setExpandedFrame] = useState<number | null>(null);
+  const [thumbnailFilter, setThumbnailFilter] = useState<"flagged" | "all">("flagged");
 
   // Close on Escape
   useEffect(() => {
@@ -242,105 +243,126 @@ export function AssetDrawer({
               )}
 
               {/* Per-frame scores with thumbnails */}
-              {moderation.thumbnailScores && moderation.thumbnailScores.length > 0 && (
-                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                  <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
-                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Per-frame Scores ({moderation.thumbnailScores.length} sampled)
-                    </p>
-                  </div>
-                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {moderation.thumbnailScores.map((ts, i) => {
-                      const sr = thresholds.sexual.reject;
-                      const vr = thresholds.violence.reject;
-                      const isReject =
-                        (sr !== undefined && ts.sexual >= sr) || (vr !== undefined && ts.violence >= vr);
-                      const isReview =
-                        !isReject && (ts.sexual >= thresholds.sexual.review || ts.violence >= thresholds.violence.review);
-                      const frameBg = isReject
-                        ? "bg-red-50/60 dark:bg-red-950/20"
-                        : isReview
-                          ? "bg-yellow-50/60 dark:bg-yellow-950/20"
-                          : "";
-                      // Use exact time if available, otherwise estimate from frame index + duration
-                      const frameTime = ts.time ?? (
-                        asset?.durationSeconds && moderation.thumbnailScores
-                          ? (asset.durationSeconds / (moderation.thumbnailScores.length + 1)) * (i + 1)
-                          : undefined
-                      );
-                      const thumbUrl = playbackId && frameTime != null
-                        ? `https://image.mux.com/${playbackId}/thumbnail.webp?width=320&height=180&fit_mode=smartcrop&time=${frameTime}`
-                        : null;
-                      const isExpanded = expandedFrame === i;
+              {moderation.thumbnailScores && moderation.thumbnailScores.length > 0 && (() => {
+                const allFrames = moderation.thumbnailScores.map((ts, i) => {
+                  const sr = thresholds.sexual.reject;
+                  const vr = thresholds.violence.reject;
+                  const isReject =
+                    (sr !== undefined && ts.sexual >= sr) || (vr !== undefined && ts.violence >= vr);
+                  const isReview =
+                    !isReject && (ts.sexual >= thresholds.sexual.review || ts.violence >= thresholds.violence.review);
+                  const isFlagged = isReject || isReview;
+                  return { ts, i, isReject, isReview, isFlagged };
+                });
+                const flaggedCount = allFrames.filter((f) => f.isFlagged).length;
+                const visibleFrames = thumbnailFilter === "flagged"
+                  ? allFrames.filter((f) => f.isFlagged)
+                  : allFrames;
 
-                      return (
-                        <div key={i} className={frameBg}>
-                          <div
-                            className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
-                            onClick={() => setExpandedFrame(isExpanded ? null : i)}
-                          >
-                            {/* Thumbnail */}
-                            {thumbUrl ? (
-                              <img
-                                src={thumbUrl}
-                                alt={`Frame at ${frameTime != null ? formatTime(frameTime) : `#${i + 1}`}`}
-                                className="w-16 h-9 object-cover rounded flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="w-16 h-9 rounded bg-zinc-100 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center">
-                                <span className="text-[10px] text-zinc-400">#{i + 1}</span>
+                return (
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                      <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                        Per-frame Scores ({moderation.thumbnailScores.length} sampled)
+                      </p>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => { setThumbnailFilter("flagged"); setExpandedFrame(null); }}
+                          className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
+                            thumbnailFilter === "flagged"
+                              ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
+                              : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                          }`}
+                        >
+                          Flagged ({flaggedCount})
+                        </button>
+                        <button
+                          onClick={() => { setThumbnailFilter("all"); setExpandedFrame(null); }}
+                          className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
+                            thumbnailFilter === "all"
+                              ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
+                              : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                          }`}
+                        >
+                          All
+                        </button>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                      {visibleFrames.length === 0 ? (
+                        <div className="px-4 py-6 text-center">
+                          <p className="text-xs text-zinc-400">No flagged frames</p>
+                        </div>
+                      ) : visibleFrames.map(({ ts, i, isReject, isReview }) => {
+                        const frameBg = isReject
+                          ? "bg-red-50/60 dark:bg-red-950/20"
+                          : isReview
+                            ? "bg-yellow-50/60 dark:bg-yellow-950/20"
+                            : "";
+                        const frameTime = ts.time ?? (
+                          asset?.durationSeconds && moderation.thumbnailScores
+                            ? (asset.durationSeconds / (moderation.thumbnailScores.length + 1)) * (i + 1)
+                            : undefined
+                        );
+                        const isExpanded = expandedFrame === i;
+
+                        return (
+                          <div key={i} className={frameBg}>
+                            <div
+                              className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
+                              onClick={() => setExpandedFrame(isExpanded ? null : i)}
+                            >
+                              {/* Time */}
+                              <span className="text-xs text-zinc-400 font-mono w-10 flex-shrink-0">
+                                {frameTime != null ? formatTime(frameTime) : `#${i + 1}`}
+                              </span>
+                              {/* Scores */}
+                              <div className="flex gap-4 flex-1">
+                                <div className="text-center">
+                                  <span className="text-[10px] text-zinc-400 block">Sexual</span>
+                                  <span className={`font-mono text-xs ${scoreColor(ts.sexual, thresholds.sexual.review, thresholds.sexual.reject)}`}>
+                                    {formatScore(ts.sexual)}
+                                  </span>
+                                </div>
+                                <div className="text-center">
+                                  <span className="text-[10px] text-zinc-400 block">Violence</span>
+                                  <span className={`font-mono text-xs ${scoreColor(ts.violence, thresholds.violence.review, thresholds.violence.reject)}`}>
+                                    {formatScore(ts.violence)}
+                                  </span>
+                                </div>
+                              </div>
+                              {/* Expand indicator */}
+                              <span className="text-zinc-400 text-xs flex-shrink-0">
+                                {isExpanded ? "▾" : "▸"}
+                              </span>
+                            </div>
+                            {/* Expanded view — thumbnail only loads here */}
+                            {isExpanded && (
+                              <div className="px-4 pb-3">
+                                {playbackId && frameTime != null ? (
+                                  <img
+                                    src={`https://image.mux.com/${playbackId}/thumbnail.webp?width=640&height=360&fit_mode=smartcrop&time=${frameTime}`}
+                                    alt={`Frame at ${formatTime(frameTime)}`}
+                                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
+                                  />
+                                ) : (
+                                  <div className="w-full aspect-video rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
+                                    <span className="text-xs text-zinc-400">No thumbnail available — re-run moderation to generate</span>
+                                  </div>
+                                )}
+                                <div className="flex gap-6 mt-2">
+                                  <ScoreRow label="Sexual" score={ts.sexual} reviewThreshold={thresholds.sexual.review} rejectThreshold={thresholds.sexual.reject} />
+                                  <ScoreRow label="Violence" score={ts.violence} reviewThreshold={thresholds.violence.review} rejectThreshold={thresholds.violence.reject} />
+                                </div>
                               </div>
                             )}
-                            {/* Time */}
-                            <span className="text-xs text-zinc-400 font-mono w-10 flex-shrink-0">
-                              {frameTime != null ? formatTime(frameTime) : `#${i + 1}`}
-                            </span>
-                            {/* Scores */}
-                            <div className="flex gap-4 flex-1">
-                              <div className="text-center">
-                                <span className="text-[10px] text-zinc-400 block">Sexual</span>
-                                <span className={`font-mono text-xs ${scoreColor(ts.sexual, thresholds.sexual.review, thresholds.sexual.reject)}`}>
-                                  {formatScore(ts.sexual)}
-                                </span>
-                              </div>
-                              <div className="text-center">
-                                <span className="text-[10px] text-zinc-400 block">Violence</span>
-                                <span className={`font-mono text-xs ${scoreColor(ts.violence, thresholds.violence.review, thresholds.violence.reject)}`}>
-                                  {formatScore(ts.violence)}
-                                </span>
-                              </div>
-                            </div>
-                            {/* Expand indicator */}
-                            <span className="text-zinc-400 text-xs flex-shrink-0">
-                              {isExpanded ? "▾" : "▸"}
-                            </span>
                           </div>
-                          {/* Expanded view */}
-                          {isExpanded && (
-                            <div className="px-4 pb-3">
-                              {thumbUrl ? (
-                                <img
-                                  src={`https://image.mux.com/${playbackId}/thumbnail.webp?width=640&height=360&fit_mode=smartcrop&time=${frameTime}`}
-                                  alt={`Frame at ${frameTime != null ? formatTime(frameTime) : `#${i + 1}`}`}
-                                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
-                                />
-                              ) : (
-                                <div className="w-full aspect-video rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
-                                  <span className="text-xs text-zinc-400">No thumbnail available — re-run moderation to generate</span>
-                                </div>
-                              )}
-                              <div className="flex gap-6 mt-2">
-                                <ScoreRow label="Sexual" score={ts.sexual} reviewThreshold={thresholds.sexual.review} rejectThreshold={thresholds.sexual.reject} />
-                                <ScoreRow label="Violence" score={ts.violence} reviewThreshold={thresholds.violence.review} rejectThreshold={thresholds.violence.reject} />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Metadata */}
               <div className="grid grid-cols-2 gap-3 text-sm">

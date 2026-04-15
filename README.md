@@ -6,34 +6,26 @@ Built with [Next.js](https://nextjs.org), [Convex](https://convex.dev), and [Mux
 
 ## Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmuxinc%2Fcontent-moderation-dashboard&project-name=content-moderation-dashboard&repository-name=content-moderation-dashboard&demo-title=Content%20Moderation%20Dashboard&demo-description=A%20content%20moderation%20dashboard%20for%20Mux%20video%20assets%20using%20the%20Mux%20Robots%20API&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22convex%22%2C%22productSlug%22%3A%22convex%22%2C%22protocol%22%3A%22storage%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmuxinc%2Fcontent-moderation-dashboard&project-name=content-moderation-dashboard&repository-name=content-moderation-dashboard&demo-title=Content%20Moderation%20Dashboard&demo-description=A%20content%20moderation%20dashboard%20for%20Mux%20video%20assets%20using%20the%20Mux%20Robots%20API&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22convex%22%2C%22productSlug%22%3A%22convex%22%2C%22protocol%22%3A%22storage%22%7D%5D&env=MUX_TOKEN_ID,MUX_TOKEN_SECRET,ADMIN_PASSWORD&envDescription=Mux%20API%20credentials%20and%20admin%20password%20for%20the%20dashboard&envLink=https%3A%2F%2Fdocs.mux.com%2Fguides%2Fmake-api-requests)
 
 Clicking the button above will:
 
 1. Clone this repo to your GitHub account
 2. Prompt you to install the **Convex integration** (provisions a Convex project and sets `CONVEX_DEPLOY_KEY` automatically)
-3. Deploy the app to Vercel
+3. Prompt you for your **Mux API credentials** (`MUX_TOKEN_ID` and `MUX_TOKEN_SECRET`) and an **admin password** for the dashboard
+4. Deploy the app to Vercel
 
-### After deploying
+Your Mux credentials are automatically pushed to Convex during the build. The admin password protects the dashboard — you'll use it to log in.
 
-Set your Mux credentials as Convex environment variables. You can do this from the [Convex dashboard](https://dashboard.convex.dev) or via the CLI:
+### After deploying: set up the Mux webhook
 
-```bash
-npx convex env set MUX_TOKEN_ID <your-mux-token-id> --prod
-npx convex env set MUX_TOKEN_SECRET <your-mux-token-secret> --prod
-```
-
-Then configure a Mux webhook in the [Mux dashboard](https://dashboard.mux.com/settings/webhooks) pointing to your Convex HTTP endpoint:
+Your Convex HTTP endpoint URL is shown in the [Convex dashboard](https://dashboard.convex.dev) under your project's deployment URL. Configure a Mux webhook in the [Mux dashboard](https://dashboard.mux.com/settings/webhooks) pointing to:
 
 ```
 https://<your-project>.convex.site/mux/webhook
 ```
 
-Set the webhook signing secret in Convex:
-
-```bash
-npx convex env set MUX_WEBHOOK_SECRET <signing-secret-from-mux-dashboard> --prod
-```
+Then copy the webhook signing secret from Mux and add it as the `MUX_WEBHOOK_SECRET` environment variable in your [Vercel project settings](https://vercel.com/docs/environment-variables). Trigger a redeploy and the secret will be pushed to Convex automatically.
 
 ## What it does
 
