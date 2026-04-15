@@ -27,59 +27,99 @@ export const list = query({
 export const listWithAssets = query({
   args: {
     limit: v.optional(v.number()),
-    filter: v.optional(
+    jobFilter: v.optional(
       v.union(
         v.literal("processing"),
         v.literal("completed"),
-        v.literal("failed"),
-        v.literal("approved"),
-        v.literal("rejected"),
-        v.literal("unreviewed")
+        v.literal("failed")
       )
+    ),
+    reviewFilter: v.optional(
+      v.union(
+        v.literal("unreviewed"),
+        v.literal("approved"),
+        v.literal("auto-rejected"),
+        v.literal("rejected")
+      )
+    ),
+    questionFilter: v.optional(
+      v.object({
+        question: v.string(),
+        answer: v.string(),
+      })
     ),
   },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 50;
-    const filter = args.filter;
+    // Fetch more than needed when we'll filter in-memory
+    const fetchLimit = args.reviewFilter && args.jobFilter ? 200 : limit;
 
     let results;
-    if (filter === "processing") {
-      // "processing" includes both pending and processing statuses
-      // Use by_status index for "processing", then also grab "pending"
+
+    // Use the most selective index available
+    if (args.jobFilter === "processing") {
       const processing = await ctx.db
         .query("moderationResults")
         .withIndex("by_status", (q) => q.eq("status", "processing"))
-        .take(limit);
+        .take(fetchLimit);
       const pending = await ctx.db
         .query("moderationResults")
         .withIndex("by_status", (q) => q.eq("status", "pending"))
-        .take(limit);
+        .take(fetchLimit);
       results = [...pending, ...processing]
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, limit);
-    } else if (filter === "completed" || filter === "failed") {
+        .sort((a, b) => b.createdAt - a.createdAt);
+    } else if (args.jobFilter === "completed" || args.jobFilter === "failed") {
       results = await ctx.db
         .query("moderationResults")
-        .withIndex("by_status", (q) => q.eq("status", filter))
+        .withIndex("by_status", (q) => q.eq("status", args.jobFilter!))
         .order("desc")
-        .take(limit);
-    } else if (
-      filter === "approved" ||
-      filter === "rejected" ||
-      filter === "unreviewed"
-    ) {
+        .take(fetchLimit);
+    } else if (args.reviewFilter) {
       results = await ctx.db
         .query("moderationResults")
-        .withIndex("by_review_status", (q) => q.eq("reviewStatus", filter))
+        .withIndex("by_review_status", (q) =>
+          q.eq("reviewStatus", args.reviewFilter!)
+        )
         .order("desc")
-        .take(limit);
+        .take(fetchLimit);
     } else {
       results = await ctx.db
         .query("moderationResults")
         .withIndex("by_created_at")
         .order("desc")
-        .take(limit);
+        .take(fetchLimit);
     }
+
+    // In-memory cross-filter if both job and review filters are set
+    if (args.jobFilter && args.reviewFilter) {
+      results = results.filter((r) => {
+        if (args.jobFilter === "processing") {
+          return (
+            (r.status === "processing" || r.status === "pending") &&
+            r.reviewStatus === args.reviewFilter
+          );
+        }
+        return r.status === args.jobFilter && r.reviewStatus === args.reviewFilter;
+      });
+    } else if (args.jobFilter && !args.reviewFilter) {
+      // Already filtered by index, except "processing" needs pending too (handled above)
+    } else if (!args.jobFilter && args.reviewFilter) {
+      // Already filtered by index
+    }
+
+    // In-memory question answer filter
+    if (args.questionFilter) {
+      results = results.filter((r) => {
+        if (!r.questionAnswers) return false;
+        return r.questionAnswers.some(
+          (qa) =>
+            qa.question === args.questionFilter!.question &&
+            qa.answer === args.questionFilter!.answer
+        );
+      });
+    }
+
+    results = results.slice(0, limit);
 
     // Batch-fetch asset data from the component for each result
     const assetIds = [...new Set(results.map((r) => r.muxAssetId))];
@@ -114,17 +154,19 @@ export const counts = query({
     let processing = 0;
     let completed = 0;
     let failed = 0;
-    let approved = 0;
-    let rejected = 0;
     let unreviewed = 0;
+    let approved = 0;
+    let autoRejected = 0;
+    let rejected = 0;
 
     for (const r of all) {
       if (r.status === "pending" || r.status === "processing") processing++;
       if (r.status === "completed") completed++;
       if (r.status === "failed") failed++;
-      if (r.reviewStatus === "approved") approved++;
-      if (r.reviewStatus === "rejected") rejected++;
       if (r.reviewStatus === "unreviewed") unreviewed++;
+      if (r.reviewStatus === "approved") approved++;
+      if (r.reviewStatus === "auto-rejected") autoRejected++;
+      if (r.reviewStatus === "rejected") rejected++;
     }
 
     return {
@@ -132,9 +174,10 @@ export const counts = query({
       processing,
       completed,
       failed,
-      approved,
-      rejected,
       unreviewed,
+      approved,
+      autoRejected,
+      rejected,
     };
   },
 });
@@ -186,6 +229,7 @@ export const updateResult = internalMutation({
         v.object({
           sexual: v.number(),
           violence: v.number(),
+          time: v.optional(v.number()),
         })
       )
     ),
@@ -244,6 +288,32 @@ export const setProcessing = internalMutation({
     }
     await ctx.db.patch(existing._id, {
       status: "processing",
+      reviewStatus: "unreviewed",
+      autoActionApplied: false,
+      askQuestionsStatus: undefined,
+      questionAnswers: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const setAskQuestionsStatus = internalMutation({
+  args: {
+    muxAssetId: v.string(),
+    askQuestionsStatus: v.union(
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("moderationResults")
+      .withIndex("by_mux_asset_id", (q) => q.eq("muxAssetId", args.muxAssetId))
+      .first();
+    if (!existing) return;
+    await ctx.db.patch(existing._id, {
+      askQuestionsStatus: args.askQuestionsStatus,
       updatedAt: Date.now(),
     });
   },
@@ -313,6 +383,135 @@ export const setReviewStatus = mutation({
     await ctx.db.patch(existing._id, {
       reviewStatus: args.reviewStatus,
       reviewedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// ---------- Auto-Action Coordinator ----------
+
+/**
+ * Evaluates auto-approve/auto-reject rules after both moderation scores
+ * and Q&A answers are available. Called from pollModeration and
+ * pollAskQuestions completions — idempotent via autoActionApplied flag.
+ */
+export const applyAutoActions = internalMutation({
+  args: {
+    muxAssetId: v.string(),
+    skipAutoActions: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("moderationResults")
+      .withIndex("by_mux_asset_id", (q) => q.eq("muxAssetId", args.muxAssetId))
+      .first();
+    if (!result) return;
+
+    // Bail if not ready, already decided, or already processed
+    if (result.status !== "completed") return;
+    if (result.reviewStatus !== "unreviewed") return;
+    if (result.autoActionApplied) return;
+
+    // If caller asked to skip (e.g. backfill), just mark as processed
+    if (args.skipAutoActions) {
+      await ctx.db.patch(result._id, {
+        autoActionApplied: true,
+        updatedAt: Date.now(),
+      });
+      return;
+    }
+
+    // Load settings
+    const settings = await ctx.db.query("moderationSettings").first();
+    const autoRejectEnabled = settings?.autoRejectEnabled ?? false;
+    const rejectionRules = settings?.rejectionRules ?? [];
+
+    // If no auto-reject and no rejection rules, nothing to do
+    if (!autoRejectEnabled && rejectionRules.length === 0) {
+      await ctx.db.patch(result._id, {
+        autoActionApplied: true,
+        updatedAt: Date.now(),
+      });
+      return;
+    }
+
+    // Check if we need to wait for Q&A answers (for bypass/rejection rules)
+    const configuredQuestions = await ctx.db
+      .query("moderationQuestions")
+      .withIndex("by_created_at")
+      .take(100);
+
+    if (configuredQuestions.length > 0 && result.askQuestionsStatus === "processing") {
+      // Q&A still in flight — wait for it to complete before deciding
+      return;
+    }
+
+    // Build Q&A answer map for rule evaluation
+    const answerMap = new Map<string, string>();
+    if (result.questionAnswers) {
+      for (const qa of result.questionAnswers) {
+        if (qa.answer) answerMap.set(qa.question, qa.answer);
+      }
+    }
+
+    let shouldReject = false;
+    let rejectTrigger: "auto-reject" | "rule" = "auto-reject";
+
+    // Path 1: Score-based auto-reject
+    const scores = result.maxScores;
+    if (autoRejectEnabled && scores) {
+      const sexualReject = settings?.sexual.reject;
+      const violenceReject = settings?.violence.reject;
+      const exceedsThreshold =
+        (sexualReject !== undefined && scores.sexual >= sexualReject) ||
+        (violenceReject !== undefined && scores.violence >= violenceReject);
+
+      if (exceedsThreshold) {
+        // Check bypass rules
+        const bypassRules = settings?.bypassRules ?? [];
+        let bypassed = false;
+        for (const rule of bypassRules) {
+          if (answerMap.get(rule.question) === rule.answer) {
+            bypassed = true;
+            break;
+          }
+        }
+        if (!bypassed) {
+          shouldReject = true;
+          rejectTrigger = "auto-reject";
+        }
+      }
+    }
+
+    // Path 2: Q&A rejection rules (additive — either path can trigger rejection)
+    if (!shouldReject && rejectionRules.length > 0) {
+      for (const rule of rejectionRules) {
+        if (answerMap.get(rule.question) === rule.answer) {
+          shouldReject = true;
+          rejectTrigger = "rule";
+          break;
+        }
+      }
+    }
+
+    if (shouldReject) {
+      await ctx.db.patch(result._id, {
+        reviewStatus: "auto-rejected",
+        autoActionApplied: true,
+        reviewedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      // TODO: Phase 5 — fire rejected webhook here
+      // await ctx.scheduler.runAfter(0, internal.moderationActions.fireRejectedWebhook, {
+      //   muxAssetId: args.muxAssetId, trigger: rejectTrigger,
+      // });
+      void rejectTrigger; // will be used when webhook is implemented
+      return;
+    }
+
+    // No auto-action applies — mark as processed, leave as unreviewed
+    await ctx.db.patch(result._id, {
+      autoActionApplied: true,
       updatedAt: Date.now(),
     });
   },

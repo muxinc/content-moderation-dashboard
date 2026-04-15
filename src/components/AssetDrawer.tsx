@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -12,12 +12,19 @@ function formatScore(score: number): string {
   return `${(score * 100).toFixed(1)}%`;
 }
 
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function scoreColor(
   score: number,
   reviewThreshold: number,
-  rejectThreshold: number
+  rejectThreshold?: number
 ): string {
-  if (score >= rejectThreshold) return "text-red-600 dark:text-red-400";
+  if (rejectThreshold !== undefined && score >= rejectThreshold)
+    return "text-red-600 dark:text-red-400";
   if (score >= reviewThreshold) return "text-yellow-600 dark:text-yellow-400";
   return "text-zinc-700 dark:text-zinc-300";
 }
@@ -35,35 +42,44 @@ export function AssetDrawer({
   const asset = useQuery(api.videoQueries.getAsset, { muxAssetId });
   const setReviewStatus = useMutation(api.moderation.setReviewStatus);
   const triggerModeration = useAction(api.moderationActions.triggerModeration);
+  const [expandedFrame, setExpandedFrame] = useState<number | null>(null);
 
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCloseAction();
+      if (e.key === "Escape") {
+        if (expandedFrame !== null) {
+          setExpandedFrame(null);
+        } else {
+          onCloseAction();
+        }
+      }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onCloseAction]);
+  }, [onCloseAction, expandedFrame]);
 
   const playbackId = asset?.playbackIds?.[0]?.id;
 
   const classification = (() => {
-    if (!moderation?.maxScores) return "clear" as const;
+    if (!moderation?.maxScores) return "pass" as const;
     const s = moderation.maxScores;
-    if (s.sexual >= thresholds.sexual.reject || s.violence >= thresholds.violence.reject)
+    const sr = thresholds.sexual.reject;
+    const vr = thresholds.violence.reject;
+    if ((sr !== undefined && s.sexual >= sr) || (vr !== undefined && s.violence >= vr))
       return "reject" as const;
     if (s.sexual >= thresholds.sexual.review || s.violence >= thresholds.violence.review)
       return "review" as const;
-    return "clear" as const;
+    return "pass" as const;
   })();
 
   const classificationBadge = {
-    clear: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    pass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
     review: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     reject: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   };
 
-  const classificationLabel = { clear: "Clear", review: "Needs Review", reject: "Auto-reject" };
+  const classificationLabel = { pass: "Pass", review: "Needs Review", reject: "Reject" };
 
   return (
     <>
@@ -73,8 +89,8 @@ export function AssetDrawer({
         onClick={onCloseAction}
       />
 
-      {/* Drawer */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 z-50 overflow-y-auto shadow-2xl">
+      {/* Drawer — wider */}
+      <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 z-50 overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between z-10">
           <h2 className="text-lg font-semibold truncate">Asset Details</h2>
@@ -186,7 +202,46 @@ export function AssetDrawer({
                 </div>
               )}
 
-              {/* Per-frame scores */}
+              {/* Q&A Answers */}
+              {moderation.questionAnswers && moderation.questionAnswers.length > 0 && (
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Q&A Answers
+                    </p>
+                  </div>
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {moderation.questionAnswers.map((qa, i) => (
+                      <div key={i} className="px-4 py-3">
+                        <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-1">{qa.question}</p>
+                        {qa.skipped ? (
+                          <span className="text-xs text-zinc-400 italic">Skipped</span>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <span className={`text-sm font-semibold ${
+                              qa.answer === "yes"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : qa.answer === "no"
+                                  ? "text-zinc-600 dark:text-zinc-400"
+                                  : "text-zinc-500"
+                            }`}>
+                              {qa.answer ?? "—"}
+                            </span>
+                            <span className="text-xs text-zinc-400">
+                              {Math.round(qa.confidence * 100)}% confidence
+                            </span>
+                          </div>
+                        )}
+                        {qa.reasoning && (
+                          <p className="text-xs text-zinc-400 mt-1">{qa.reasoning}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Per-frame scores with thumbnails */}
               {moderation.thumbnailScores && moderation.thumbnailScores.length > 0 && (
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                   <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
@@ -194,41 +249,95 @@ export function AssetDrawer({
                       Per-frame Scores ({moderation.thumbnailScores.length} sampled)
                     </p>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                          <th className="text-left px-4 py-2 text-xs font-medium text-zinc-400">Frame</th>
-                          <th className="text-center px-4 py-2 text-xs font-medium text-zinc-400">Sexual</th>
-                          <th className="text-center px-4 py-2 text-xs font-medium text-zinc-400">Violence</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800/50">
-                        {moderation.thumbnailScores.map((ts: { sexual: number; violence: number }, i: number) => {
-                          const frameBg =
-                            ts.sexual >= thresholds.sexual.reject || ts.violence >= thresholds.violence.reject
-                              ? "bg-red-50/60 dark:bg-red-950/20"
-                              : ts.sexual >= thresholds.sexual.review || ts.violence >= thresholds.violence.review
-                                ? "bg-yellow-50/60 dark:bg-yellow-950/20"
-                                : "";
-                          return (
-                            <tr key={i} className={frameBg}>
-                              <td className="px-4 py-1.5 text-xs text-zinc-400 font-mono">#{i + 1}</td>
-                              <td className="px-4 py-1.5 text-center">
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {moderation.thumbnailScores.map((ts, i) => {
+                      const sr = thresholds.sexual.reject;
+                      const vr = thresholds.violence.reject;
+                      const isReject =
+                        (sr !== undefined && ts.sexual >= sr) || (vr !== undefined && ts.violence >= vr);
+                      const isReview =
+                        !isReject && (ts.sexual >= thresholds.sexual.review || ts.violence >= thresholds.violence.review);
+                      const frameBg = isReject
+                        ? "bg-red-50/60 dark:bg-red-950/20"
+                        : isReview
+                          ? "bg-yellow-50/60 dark:bg-yellow-950/20"
+                          : "";
+                      // Use exact time if available, otherwise estimate from frame index + duration
+                      const frameTime = ts.time ?? (
+                        asset?.durationSeconds && moderation.thumbnailScores
+                          ? (asset.durationSeconds / (moderation.thumbnailScores.length + 1)) * (i + 1)
+                          : undefined
+                      );
+                      const thumbUrl = playbackId && frameTime != null
+                        ? `https://image.mux.com/${playbackId}/thumbnail.webp?width=320&height=180&fit_mode=smartcrop&time=${frameTime}`
+                        : null;
+                      const isExpanded = expandedFrame === i;
+
+                      return (
+                        <div key={i} className={frameBg}>
+                          <div
+                            className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
+                            onClick={() => setExpandedFrame(isExpanded ? null : i)}
+                          >
+                            {/* Thumbnail */}
+                            {thumbUrl ? (
+                              <img
+                                src={thumbUrl}
+                                alt={`Frame at ${frameTime != null ? formatTime(frameTime) : `#${i + 1}`}`}
+                                className="w-16 h-9 object-cover rounded flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-16 h-9 rounded bg-zinc-100 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center">
+                                <span className="text-[10px] text-zinc-400">#{i + 1}</span>
+                              </div>
+                            )}
+                            {/* Time */}
+                            <span className="text-xs text-zinc-400 font-mono w-10 flex-shrink-0">
+                              {frameTime != null ? formatTime(frameTime) : `#${i + 1}`}
+                            </span>
+                            {/* Scores */}
+                            <div className="flex gap-4 flex-1">
+                              <div className="text-center">
+                                <span className="text-[10px] text-zinc-400 block">Sexual</span>
                                 <span className={`font-mono text-xs ${scoreColor(ts.sexual, thresholds.sexual.review, thresholds.sexual.reject)}`}>
                                   {formatScore(ts.sexual)}
                                 </span>
-                              </td>
-                              <td className="px-4 py-1.5 text-center">
+                              </div>
+                              <div className="text-center">
+                                <span className="text-[10px] text-zinc-400 block">Violence</span>
                                 <span className={`font-mono text-xs ${scoreColor(ts.violence, thresholds.violence.review, thresholds.violence.reject)}`}>
                                   {formatScore(ts.violence)}
                                 </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                              </div>
+                            </div>
+                            {/* Expand indicator */}
+                            <span className="text-zinc-400 text-xs flex-shrink-0">
+                              {isExpanded ? "▾" : "▸"}
+                            </span>
+                          </div>
+                          {/* Expanded view */}
+                          {isExpanded && (
+                            <div className="px-4 pb-3">
+                              {thumbUrl ? (
+                                <img
+                                  src={`https://image.mux.com/${playbackId}/thumbnail.webp?width=640&height=360&fit_mode=smartcrop&time=${frameTime}`}
+                                  alt={`Frame at ${frameTime != null ? formatTime(frameTime) : `#${i + 1}`}`}
+                                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
+                                />
+                              ) : (
+                                <div className="w-full aspect-video rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
+                                  <span className="text-xs text-zinc-400">No thumbnail available — re-run moderation to generate</span>
+                                </div>
+                              )}
+                              <div className="flex gap-6 mt-2">
+                                <ScoreRow label="Sexual" score={ts.sexual} reviewThreshold={thresholds.sexual.review} rejectThreshold={thresholds.sexual.reject} />
+                                <ScoreRow label="Violence" score={ts.violence} reviewThreshold={thresholds.violence.review} rejectThreshold={thresholds.violence.reject} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -278,7 +387,7 @@ export function AssetDrawer({
                     </button>
                     <button
                       onClick={() => setReviewStatus({ muxAssetId, reviewStatus: "rejected" })}
-                      disabled={moderation.reviewStatus === "rejected"}
+                      disabled={moderation.reviewStatus === "rejected" || moderation.reviewStatus === "auto-rejected"}
                       className="flex-1 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
                       Reject
@@ -323,15 +432,19 @@ function ScoreRow({
   label: string;
   score: number;
   reviewThreshold: number;
-  rejectThreshold: number;
+  rejectThreshold?: number;
 }) {
   const zone =
-    score >= rejectThreshold ? "reject" : score >= reviewThreshold ? "review" : "clear";
+    rejectThreshold !== undefined && score >= rejectThreshold
+      ? "reject"
+      : score >= reviewThreshold
+        ? "review"
+        : "pass";
   const barWidth = Math.max(score * 100, score > 0 ? 1 : 0);
-  const barColor = { clear: "bg-emerald-500", review: "bg-yellow-500", reject: "bg-red-500" }[zone];
-  const zoneLabel = { clear: "Clear", review: "Review", reject: "Reject" }[zone];
+  const barColor = { pass: "bg-emerald-500", review: "bg-yellow-500", reject: "bg-red-500" }[zone];
+  const zoneLabel = { pass: "Pass", review: "Review", reject: "Reject" }[zone];
   const zoneBadge = {
-    clear: "text-emerald-600 dark:text-emerald-400",
+    pass: "text-emerald-600 dark:text-emerald-400",
     review: "text-yellow-600 dark:text-yellow-400",
     reject: "text-red-600 dark:text-red-400",
   }[zone];
@@ -348,20 +461,32 @@ function ScoreRow({
         </div>
       </div>
       <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2.5 relative overflow-hidden">
-        <div
-          className="absolute top-0 h-2.5 bg-yellow-200/40 dark:bg-yellow-800/20"
-          style={{ left: `${reviewThreshold * 100}%`, width: `${(rejectThreshold - reviewThreshold) * 100}%` }}
-        />
-        <div
-          className="absolute top-0 h-2.5 bg-red-200/40 dark:bg-red-800/20 rounded-r-full"
-          style={{ left: `${rejectThreshold * 100}%`, width: `${(1 - rejectThreshold) * 100}%` }}
-        />
+        {rejectThreshold !== undefined && (
+          <>
+            <div
+              className="absolute top-0 h-2.5 bg-yellow-200/40 dark:bg-yellow-800/20"
+              style={{ left: `${reviewThreshold * 100}%`, width: `${(rejectThreshold - reviewThreshold) * 100}%` }}
+            />
+            <div
+              className="absolute top-0 h-2.5 bg-red-200/40 dark:bg-red-800/20 rounded-r-full"
+              style={{ left: `${rejectThreshold * 100}%`, width: `${(1 - rejectThreshold) * 100}%` }}
+            />
+          </>
+        )}
+        {rejectThreshold === undefined && (
+          <div
+            className="absolute top-0 h-2.5 bg-yellow-200/40 dark:bg-yellow-800/20 rounded-r-full"
+            style={{ left: `${reviewThreshold * 100}%`, width: `${(1 - reviewThreshold) * 100}%` }}
+          />
+        )}
         <div
           className={`h-2.5 rounded-full transition-all duration-300 relative z-10 ${barColor}`}
           style={{ width: `${Math.min(barWidth, 100)}%` }}
         />
         <div className="absolute top-0 w-0.5 h-2.5 bg-yellow-500/60 z-20" style={{ left: `${reviewThreshold * 100}%` }} />
-        <div className="absolute top-0 w-0.5 h-2.5 bg-red-500/60 z-20" style={{ left: `${rejectThreshold * 100}%` }} />
+        {rejectThreshold !== undefined && (
+          <div className="absolute top-0 w-0.5 h-2.5 bg-red-500/60 z-20" style={{ left: `${rejectThreshold * 100}%` }} />
+        )}
       </div>
     </div>
   );
@@ -385,11 +510,18 @@ function ReviewBadge({ reviewStatus }: { reviewStatus: string }) {
   const styles: Record<string, string> = {
     unreviewed: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
     approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "auto-rejected": "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 border border-red-200 dark:border-red-800",
     rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  };
+  const labels: Record<string, string> = {
+    unreviewed: "unreviewed",
+    approved: "approved",
+    "auto-rejected": "auto-rejected",
+    rejected: "rejected",
   };
   return (
     <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium ${styles[reviewStatus] ?? ""}`}>
-      {reviewStatus}
+      {labels[reviewStatus] ?? reviewStatus}
     </span>
   );
 }

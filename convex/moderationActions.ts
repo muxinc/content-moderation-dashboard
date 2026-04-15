@@ -27,6 +27,7 @@ export const runModeration = internalAction({
     muxAssetId: v.string(),
     sexualThreshold: v.optional(v.number()),
     violenceThreshold: v.optional(v.number()),
+    skipAutoActions: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await ctx.runMutation(internal.moderation.setProcessing, {
@@ -67,12 +68,18 @@ export const runModeration = internalAction({
       await ctx.scheduler.runAfter(
         POLL_INTERVAL_MS,
         internal.moderationActions.pollModeration,
-        { muxAssetId: args.muxAssetId, robotsJobId: jobId, attempt: 1 }
+        {
+          muxAssetId: args.muxAssetId,
+          robotsJobId: jobId,
+          attempt: 1,
+          skipAutoActions: args.skipAutoActions,
+        }
       );
 
       // Also kick off ask-questions if there are configured questions
       await ctx.scheduler.runAfter(0, internal.moderationActions.runAskQuestions, {
         muxAssetId: args.muxAssetId,
+        skipAutoActions: args.skipAutoActions,
       });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -90,6 +97,7 @@ export const pollModeration = internalAction({
     muxAssetId: v.string(),
     robotsJobId: v.string(),
     attempt: v.number(),
+    skipAutoActions: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     try {
@@ -113,12 +121,18 @@ export const pollModeration = internalAction({
           exceedsThreshold: outputs.exceeds_threshold,
           maxScores: outputs.max_scores,
           thumbnailScores: outputs.thumbnail_scores.map(
-            (s: { sexual: number; violence: number }) => ({
+            (s: { sexual: number; violence: number; time?: number }) => ({
               sexual: s.sexual,
               violence: s.violence,
+              time: s.time,
             })
           ),
           robotsJobId: args.robotsJobId,
+        });
+        // Schedule auto-action coordinator
+        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+          muxAssetId: args.muxAssetId,
+          skipAutoActions: args.skipAutoActions,
         });
         return;
       }
@@ -153,6 +167,7 @@ export const pollModeration = internalAction({
           muxAssetId: args.muxAssetId,
           robotsJobId: args.robotsJobId,
           attempt: args.attempt + 1,
+          skipAutoActions: args.skipAutoActions,
         }
       );
     } catch (e: unknown) {
@@ -172,11 +187,18 @@ export const pollModeration = internalAction({
 export const runAskQuestions = internalAction({
   args: {
     muxAssetId: v.string(),
+    skipAutoActions: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Fetch configured questions
     const questions = await ctx.runQuery(api.questions.list);
     if (questions.length === 0) return;
+
+    // Mark Q&A as in-progress so the coordinator knows to wait
+    await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+      muxAssetId: args.muxAssetId,
+      askQuestionsStatus: "processing",
+    });
 
     try {
       const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/ask-questions`, {
@@ -189,7 +211,6 @@ export const runAskQuestions = internalAction({
           parameters: {
             asset_id: args.muxAssetId,
             questions: questions.map((q) => ({ question: q.question })),
-            // Use default yes/no answer options
           },
         }),
       });
@@ -197,6 +218,15 @@ export const runAskQuestions = internalAction({
       if (!resp.ok) {
         const body = await resp.text();
         console.error(`Ask-questions API error (${resp.status}): ${body}`);
+        await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+          muxAssetId: args.muxAssetId,
+          askQuestionsStatus: "failed",
+        });
+        // Trigger coordinator since Q&A won't complete
+        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+          muxAssetId: args.muxAssetId,
+          skipAutoActions: args.skipAutoActions,
+        });
         return;
       }
 
@@ -211,10 +241,23 @@ export const runAskQuestions = internalAction({
       await ctx.scheduler.runAfter(
         POLL_INTERVAL_MS,
         internal.moderationActions.pollAskQuestions,
-        { muxAssetId: args.muxAssetId, jobId, attempt: 1 }
+        {
+          muxAssetId: args.muxAssetId,
+          jobId,
+          attempt: 1,
+          skipAutoActions: args.skipAutoActions,
+        }
       );
     } catch (e: unknown) {
       console.error(`Ask-questions failed for ${args.muxAssetId}:`, e);
+      await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+        muxAssetId: args.muxAssetId,
+        askQuestionsStatus: "failed",
+      });
+      await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+        muxAssetId: args.muxAssetId,
+        skipAutoActions: args.skipAutoActions,
+      });
     }
   },
 });
@@ -224,6 +267,7 @@ export const pollAskQuestions = internalAction({
     muxAssetId: v.string(),
     jobId: v.string(),
     attempt: v.number(),
+    skipAutoActions: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     try {
@@ -234,6 +278,14 @@ export const pollAskQuestions = internalAction({
 
       if (!resp.ok) {
         console.error(`Ask-questions poll error (${resp.status})`);
+        await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+          muxAssetId: args.muxAssetId,
+          askQuestionsStatus: "failed",
+        });
+        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+          muxAssetId: args.muxAssetId,
+          skipAutoActions: args.skipAutoActions,
+        });
         return;
       }
 
@@ -261,16 +313,41 @@ export const pollAskQuestions = internalAction({
           questionAnswers: answers,
           askQuestionsJobId: args.jobId,
         });
+        await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+          muxAssetId: args.muxAssetId,
+          askQuestionsStatus: "completed",
+        });
+        // Schedule coordinator — Q&A answers are now available for bypass rules
+        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+          muxAssetId: args.muxAssetId,
+          skipAutoActions: args.skipAutoActions,
+        });
         return;
       }
 
       if (job.status === "errored") {
         console.error(`Ask-questions job errored for ${args.muxAssetId}`);
+        await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+          muxAssetId: args.muxAssetId,
+          askQuestionsStatus: "failed",
+        });
+        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+          muxAssetId: args.muxAssetId,
+          skipAutoActions: args.skipAutoActions,
+        });
         return;
       }
 
       if (args.attempt >= MAX_POLL_ATTEMPTS) {
         console.error(`Ask-questions job timed out for ${args.muxAssetId}`);
+        await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+          muxAssetId: args.muxAssetId,
+          askQuestionsStatus: "failed",
+        });
+        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+          muxAssetId: args.muxAssetId,
+          skipAutoActions: args.skipAutoActions,
+        });
         return;
       }
 
@@ -281,10 +358,19 @@ export const pollAskQuestions = internalAction({
           muxAssetId: args.muxAssetId,
           jobId: args.jobId,
           attempt: args.attempt + 1,
+          skipAutoActions: args.skipAutoActions,
         }
       );
     } catch (e: unknown) {
       console.error(`Ask-questions poll failed for ${args.muxAssetId}:`, e);
+      await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
+        muxAssetId: args.muxAssetId,
+        askQuestionsStatus: "failed",
+      });
+      await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
+        muxAssetId: args.muxAssetId,
+        skipAutoActions: args.skipAutoActions,
+      });
     }
   },
 });

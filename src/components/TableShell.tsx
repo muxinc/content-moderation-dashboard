@@ -18,7 +18,7 @@ type ModerationData = {
   muxAssetId: string;
   status: "pending" | "processing" | "completed" | "failed";
   maxScores?: { sexual: number; violence: number };
-  reviewStatus: "unreviewed" | "approved" | "rejected";
+  reviewStatus: "unreviewed" | "approved" | "auto-rejected" | "rejected";
   questionAnswers?: QuestionAnswer[];
 } | null;
 
@@ -30,9 +30,10 @@ function formatScore(score: number): string {
 function scoreColor(
   score: number,
   reviewThreshold: number,
-  rejectThreshold: number
+  rejectThreshold?: number
 ): string {
-  if (score >= rejectThreshold) return "text-red-600 dark:text-red-400 font-semibold";
+  if (rejectThreshold !== undefined && score >= rejectThreshold)
+    return "text-red-600 dark:text-red-400 font-semibold";
   if (score >= reviewThreshold) return "text-yellow-600 dark:text-yellow-400 font-semibold";
   return "text-zinc-700 dark:text-zinc-300";
 }
@@ -40,14 +41,19 @@ function scoreColor(
 function classify(
   moderation: ModerationData,
   thresholds: Thresholds
-): "clear" | "review" | "reject" | "none" {
+): "pass" | "review" | "reject" | "none" {
   if (!moderation?.maxScores) return "none";
   const s = moderation.maxScores;
-  if (s.sexual >= thresholds.sexual.reject || s.violence >= thresholds.violence.reject)
+  const sexualReject = thresholds.sexual.reject;
+  const violenceReject = thresholds.violence.reject;
+  if (
+    (sexualReject !== undefined && s.sexual >= sexualReject) ||
+    (violenceReject !== undefined && s.violence >= violenceReject)
+  )
     return "reject";
   if (s.sexual >= thresholds.sexual.review || s.violence >= thresholds.violence.review)
     return "review";
-  return "clear";
+  return "pass";
 }
 
 function rowBg(moderation: ModerationData, thresholds: Thresholds): string {
@@ -236,7 +242,7 @@ export function AssetRow({
               </button>
               <button
                 onClick={() => setReviewStatus({ muxAssetId, reviewStatus: "rejected" })}
-                disabled={moderation.reviewStatus === "rejected"}
+                disabled={moderation.reviewStatus === "rejected" || moderation.reviewStatus === "auto-rejected"}
                 className="px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 Reject
@@ -279,14 +285,14 @@ function JobStatusBadge({ status }: { status: string }) {
   );
 }
 
-function ClassificationBadge({ classification }: { classification: "clear" | "review" | "reject" | "none" }) {
+function ClassificationBadge({ classification }: { classification: "pass" | "review" | "reject" | "none" }) {
   if (classification === "none") return <span className="text-zinc-300 dark:text-zinc-600">—</span>;
   const config = {
-    clear: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    pass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
     review: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     reject: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   };
-  const labels = { clear: "Clear", review: "Review", reject: "Reject" };
+  const labels = { pass: "Pass", review: "Review", reject: "Reject" };
   return (
     <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-semibold ${config[classification]}`}>
       {labels[classification]}
@@ -298,11 +304,18 @@ function ReviewBadge({ reviewStatus }: { reviewStatus: string }) {
   const styles: Record<string, string> = {
     unreviewed: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
     approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "auto-rejected": "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 border border-red-200 dark:border-red-800",
     rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  };
+  const labels: Record<string, string> = {
+    unreviewed: "unreviewed",
+    approved: "approved",
+    "auto-rejected": "auto-rejected",
+    rejected: "rejected",
   };
   return (
     <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium ${styles[reviewStatus] ?? ""}`}>
-      {reviewStatus}
+      {labels[reviewStatus] ?? reviewStatus}
     </span>
   );
 }

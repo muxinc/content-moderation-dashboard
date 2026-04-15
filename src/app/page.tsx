@@ -13,22 +13,21 @@ import { AssetDrawer } from "@/components/AssetDrawer";
 import { QuestionManager } from "@/components/QuestionManager";
 
 export type Thresholds = {
-  sexual: { review: number; reject: number };
-  violence: { review: number; reject: number };
+  sexual: { review: number; reject?: number };
+  violence: { review: number; reject?: number };
 };
 
-export type ModerationFilter =
+export type JobFilter = undefined | "processing" | "completed" | "failed";
+export type ReviewFilter =
   | undefined
-  | "processing"
-  | "completed"
-  | "failed"
+  | "unreviewed"
   | "approved"
-  | "rejected"
-  | "unreviewed";
+  | "auto-rejected"
+  | "rejected";
 
 const DEFAULT_THRESHOLDS: Thresholds = {
-  sexual: { review: 0.3, reject: 0.7 },
-  violence: { review: 0.4, reject: 0.8 },
+  sexual: { review: 0.9 },
+  violence: { review: 0.9 },
 };
 
 const PAGE_SIZE = 25;
@@ -44,7 +43,8 @@ export default function Home() {
 function HomeContent() {
   const [tab, setTab] = useState<"assets" | "moderation">("moderation");
   const [assetsOffset, setAssetsOffset] = useState(0);
-  const [moderationFilter, setModerationFilter] = useState<ModerationFilter>(undefined);
+  const [jobFilter, setJobFilter] = useState<JobFilter>(undefined);
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>(undefined);
   const [showConfig, setShowConfig] = useState(false);
 
   const assetsData = useQuery(api.videoQueries.listAssetsWithModeration, {
@@ -54,7 +54,8 @@ function HomeContent() {
 
   const moderationData = useQuery(api.moderation.listWithAssets, {
     limit: 50,
-    filter: moderationFilter,
+    jobFilter: jobFilter,
+    reviewFilter: reviewFilter,
   });
 
   const settings = useQuery(api.settings.get);
@@ -81,8 +82,8 @@ function HomeContent() {
 
   const thresholds: Thresholds = settings
     ? {
-        sexual: { review: settings.sexual.review, reject: settings.sexual.ban },
-        violence: { review: settings.violence.review, reject: settings.violence.ban },
+        sexual: { review: settings.sexual.review, reject: settings.sexual.reject },
+        violence: { review: settings.violence.review, reject: settings.violence.reject },
       }
     : DEFAULT_THRESHOLDS;
 
@@ -174,8 +175,10 @@ function HomeContent() {
           <ModerationResultsView
             data={moderationData ?? null}
             thresholds={thresholds}
-            filter={moderationFilter}
-            onFilterChangeAction={setModerationFilter}
+            jobFilter={jobFilter}
+            reviewFilter={reviewFilter}
+            onJobFilterChangeAction={setJobFilter}
+            onReviewFilterChangeAction={setReviewFilter}
             onSelectAssetAction={openAsset}
           />
         )}

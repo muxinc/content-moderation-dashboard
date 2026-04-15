@@ -140,6 +140,7 @@ export const runBackfill = internalAction({
         if (!existing || existing.status === "failed") {
           await ctx.scheduler.runAfter(0, internal.moderationActions.runModeration, {
             muxAssetId: asset.id,
+            skipAutoActions: true,
           });
           moderationScheduled += 1;
         }

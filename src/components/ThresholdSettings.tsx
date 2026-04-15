@@ -14,33 +14,39 @@ export function ThresholdSettings({
 
   const [local, setLocal] = useState({
     sexualReview: Math.round(thresholds.sexual.review * 100),
-    sexualReject: Math.round(thresholds.sexual.reject * 100),
+    sexualReject: thresholds.sexual.reject != null ? Math.round(thresholds.sexual.reject * 100) : ("" as string | number),
     violenceReview: Math.round(thresholds.violence.review * 100),
-    violenceReject: Math.round(thresholds.violence.reject * 100),
+    violenceReject: thresholds.violence.reject != null ? Math.round(thresholds.violence.reject * 100) : ("" as string | number),
   });
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     setLocal({
       sexualReview: Math.round(thresholds.sexual.review * 100),
-      sexualReject: Math.round(thresholds.sexual.reject * 100),
+      sexualReject: thresholds.sexual.reject != null ? Math.round(thresholds.sexual.reject * 100) : "",
       violenceReview: Math.round(thresholds.violence.review * 100),
-      violenceReject: Math.round(thresholds.violence.reject * 100),
+      violenceReject: thresholds.violence.reject != null ? Math.round(thresholds.violence.reject * 100) : "",
     });
     setDirty(false);
   }, [thresholds]);
 
-  const sexualError = local.sexualReview > local.sexualReject;
-  const violenceError = local.violenceReview > local.violenceReject;
+  const sexualError =
+    typeof local.sexualReject === "number" &&
+    typeof local.sexualReview === "number" &&
+    local.sexualReview > local.sexualReject;
+  const violenceError =
+    typeof local.violenceReject === "number" &&
+    typeof local.violenceReview === "number" &&
+    local.violenceReview > local.violenceReject;
   const hasError = sexualError || violenceError;
 
   const update = (field: keyof typeof local, raw: string) => {
-    const num = parseInt(raw, 10);
     if (raw === "") {
-      setLocal((prev) => ({ ...prev, [field]: "" as unknown as number }));
+      setLocal((prev) => ({ ...prev, [field]: "" }));
       setDirty(true);
       return;
     }
+    const num = parseInt(raw, 10);
     if (isNaN(num)) return;
     const clamped = Math.max(0, Math.min(100, num));
     setLocal((prev) => ({ ...prev, [field]: clamped }));
@@ -49,9 +55,17 @@ export function ThresholdSettings({
 
   const save = async () => {
     if (hasError) return;
+    const sexualReview = typeof local.sexualReview === "number" ? local.sexualReview : 90;
+    const violenceReview = typeof local.violenceReview === "number" ? local.violenceReview : 90;
     await updateSettings({
-      sexual: { review: local.sexualReview / 100, ban: local.sexualReject / 100 },
-      violence: { review: local.violenceReview / 100, ban: local.violenceReject / 100 },
+      sexual: {
+        review: sexualReview / 100,
+        reject: typeof local.sexualReject === "number" ? local.sexualReject / 100 : undefined,
+      },
+      violence: {
+        review: violenceReview / 100,
+        reject: typeof local.violenceReject === "number" ? local.violenceReject / 100 : undefined,
+      },
     });
     setDirty(false);
   };
@@ -64,10 +78,9 @@ export function ThresholdSettings({
       <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">
         Scores 0–100.{" "}
         <span className="text-yellow-600 dark:text-yellow-400">Review</span>
-        {" = human review. "}
+        {" = needs human review. "}
         <span className="text-red-600 dark:text-red-400">Reject</span>
-        {" = auto-reject. "}
-        <span className="text-zinc-400">Suggested: Sexual 30/70, Violence 40/80</span>
+        {" = auto-reject (leave blank to disable)."}
       </p>
 
       <div className="space-y-4">
@@ -115,8 +128,8 @@ function DimensionInputs({
   onRejectChangeAction,
 }: {
   label: string;
-  review: number;
-  reject: number;
+  review: string | number;
+  reject: string | number;
   error: boolean;
   onReviewChangeAction: (v: string) => void;
   onRejectChangeAction: (v: string) => void;
@@ -136,7 +149,7 @@ function DimensionInputs({
             min={0}
             max={100}
             value={review}
-            placeholder="30"
+            placeholder="90"
             onChange={(e) => onReviewChangeAction(e.target.value)}
             className={`w-full px-3 py-1.5 text-sm font-mono rounded-lg border bg-white dark:bg-zinc-800 transition-colors ${
               error
@@ -147,14 +160,14 @@ function DimensionInputs({
         </div>
         <div>
           <label className="text-xs text-red-600 dark:text-red-400 mb-1 block">
-            Reject
+            Reject <span className="text-zinc-400 font-normal">(optional)</span>
           </label>
           <input
             type="number"
             min={0}
             max={100}
             value={reject}
-            placeholder="70"
+            placeholder="—"
             onChange={(e) => onRejectChangeAction(e.target.value)}
             className={`w-full px-3 py-1.5 text-sm font-mono rounded-lg border bg-white dark:bg-zinc-800 transition-colors ${
               error

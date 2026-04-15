@@ -3,7 +3,7 @@ import { v } from "convex/values";
 
 const dimensionThresholds = v.object({
   review: v.number(),
-  ban: v.number(),
+  reject: v.optional(v.number()),
 });
 
 export default defineSchema({
@@ -49,10 +49,19 @@ export default defineSchema({
     reviewStatus: v.union(
       v.literal("unreviewed"),
       v.literal("approved"),
+      v.literal("auto-rejected"),
       v.literal("rejected")
     ),
+    autoActionApplied: v.optional(v.boolean()),
     reviewedAt: v.optional(v.number()),
     // Q&A answers from Robots ask-questions
+    askQuestionsStatus: v.optional(
+      v.union(
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("failed")
+      )
+    ),
     questionAnswers: v.optional(
       v.array(
         v.object({
@@ -76,8 +85,46 @@ export default defineSchema({
   moderationSettings: defineTable({
     sexual: dimensionThresholds,
     violence: dimensionThresholds,
+    autoRejectEnabled: v.optional(v.boolean()),
+    rejectedWebhookUrl: v.optional(v.string()),
+    // Q&A rules that trigger rejection: IF {question} answer is {answer} THEN reject
+    rejectionRules: v.optional(
+      v.array(
+        v.object({
+          question: v.string(),
+          answer: v.string(),
+        })
+      )
+    ),
+    // Exceptions to score-based auto-reject: IF {question} answer is {answer} THEN don't auto-reject
+    bypassRules: v.optional(
+      v.array(
+        v.object({
+          question: v.string(),
+          answer: v.string(),
+        })
+      )
+    ),
     updatedAt: v.number(),
   }),
+
+  // Log of rejected webhook calls
+  webhookLog: defineTable({
+    muxAssetId: v.string(),
+    event: v.literal("rejected"),
+    trigger: v.union(
+      v.literal("auto-reject"),
+      v.literal("rule"),
+      v.literal("manual")
+    ),
+    webhookUrl: v.string(),
+    httpStatus: v.optional(v.number()),
+    responseBody: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_mux_asset_id", ["muxAssetId"])
+    .index("by_created_at", ["createdAt"]),
 
   // Configured Q&A questions to run on every asset
   moderationQuestions: defineTable({
