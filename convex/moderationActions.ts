@@ -1,11 +1,11 @@
 "use node";
 
+import Mux from "@mux/mux-node";
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { authenticatedAction } from "./lib/auth";
 
-const MUX_BASE_URL = "https://api.mux.com";
 const POLL_INTERVAL_MS = 5_000;
 const MAX_POLL_ATTEMPTS = 120; // 10 minutes at 5s intervals
 
@@ -15,10 +15,11 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-function muxAuthHeader(): string {
-  const tokenId = requiredEnv("MUX_TOKEN_ID");
-  const tokenSecret = requiredEnv("MUX_TOKEN_SECRET");
-  return `Basic ${Buffer.from(`${tokenId}:${tokenSecret}`).toString("base64")}`;
+function muxClient(): Mux {
+  return new Mux({
+    tokenId: requiredEnv("MUX_TOKEN_ID"),
+    tokenSecret: requiredEnv("MUX_TOKEN_SECRET"),
+  });
 }
 
 // ─── Moderation job ───
@@ -36,30 +37,17 @@ export const runModeration = internalAction({
     });
 
     try {
-      const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/moderate`, {
-        method: "POST",
-        headers: {
-          Authorization: muxAuthHeader(),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          parameters: {
-            asset_id: args.muxAssetId,
-            thresholds: {
-              sexual: args.sexualThreshold ?? 0.7,
-              violence: args.violenceThreshold ?? 0.8,
-            },
+      const job = await muxClient().robotsPreview.jobs.moderate.create({
+        parameters: {
+          asset_id: args.muxAssetId,
+          thresholds: {
+            sexual: args.sexualThreshold ?? 0.7,
+            violence: args.violenceThreshold ?? 0.8,
           },
-        }),
+        },
       });
 
-      if (!resp.ok) {
-        const body = await resp.text();
-        throw new Error(`Mux Robots API error (${resp.status}): ${body}`);
-      }
-
-      const data = await resp.json();
-      const jobId = data.data.id as string;
+      const jobId = job.id;
 
       await ctx.runMutation(internal.moderation.setRobotsJobId, {
         muxAssetId: args.muxAssetId,
@@ -108,32 +96,22 @@ export const pollModeration = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      const resp = await fetch(
-        `${MUX_BASE_URL}/robots/v0/jobs/moderate/${args.robotsJobId}`,
-        { headers: { Authorization: muxAuthHeader() } }
+      const job = await muxClient().robotsPreview.jobs.moderate.retrieve(
+        args.robotsJobId
       );
 
-      if (!resp.ok) {
-        const body = await resp.text();
-        throw new Error(`Mux Robots poll error (${resp.status}): ${body}`);
-      }
-
-      const job = (await resp.json()).data;
-
-      if (job.status === "completed") {
+      if (job.status === "completed" && job.outputs) {
         const outputs = job.outputs;
         await ctx.runMutation(internal.moderation.updateResult, {
           muxAssetId: args.muxAssetId,
           status: "completed",
           exceedsThreshold: outputs.exceeds_threshold,
           maxScores: outputs.max_scores,
-          thumbnailScores: outputs.thumbnail_scores.map(
-            (s: { sexual: number; violence: number; time?: number }) => ({
-              sexual: s.sexual,
-              violence: s.violence,
-              time: s.time,
-            })
-          ),
+          thumbnailScores: outputs.thumbnail_scores.map((s) => ({
+            sexual: s.sexual,
+            violence: s.violence,
+            time: s.time,
+          })),
           robotsJobId: args.robotsJobId,
         });
         // Schedule auto-action coordinator
@@ -146,8 +124,7 @@ export const pollModeration = internalAction({
 
       if (job.status === "errored") {
         const errMsg =
-          job.errors?.map((e: { message: string }) => e.message).join("; ") ??
-          "Unknown error";
+          job.errors?.map((e) => e.message).join("; ") ?? "Unknown error";
         await ctx.runMutation(internal.moderation.updateResult, {
           muxAssetId: args.muxAssetId,
           status: "failed",
@@ -208,37 +185,14 @@ export const runAskQuestions = internalAction({
     });
 
     try {
-      const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/ask-questions`, {
-        method: "POST",
-        headers: {
-          Authorization: muxAuthHeader(),
-          "Content-Type": "application/json",
+      const job = await muxClient().robotsPreview.jobs.askQuestions.create({
+        parameters: {
+          asset_id: args.muxAssetId,
+          questions: questions.map((q) => ({ question: q.question })),
         },
-        body: JSON.stringify({
-          parameters: {
-            asset_id: args.muxAssetId,
-            questions: questions.map((q) => ({ question: q.question })),
-          },
-        }),
       });
 
-      if (!resp.ok) {
-        const body = await resp.text();
-        console.error(`Ask-questions API error (${resp.status}): ${body}`);
-        await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
-          muxAssetId: args.muxAssetId,
-          askQuestionsStatus: "failed",
-        });
-        // Trigger coordinator since Q&A won't complete
-        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
-          muxAssetId: args.muxAssetId,
-          skipAutoActions: args.skipAutoActions,
-        });
-        return;
-      }
-
-      const data = await resp.json();
-      const jobId = data.data.id as string;
+      const jobId = job.id;
 
       await ctx.runMutation(internal.moderation.setAskQuestionsJobId, {
         muxAssetId: args.muxAssetId,
@@ -278,42 +232,18 @@ export const pollAskQuestions = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      const resp = await fetch(
-        `${MUX_BASE_URL}/robots/v0/jobs/ask-questions/${args.jobId}`,
-        { headers: { Authorization: muxAuthHeader() } }
+      const job = await muxClient().robotsPreview.jobs.askQuestions.retrieve(
+        args.jobId
       );
 
-      if (!resp.ok) {
-        console.error(`Ask-questions poll error (${resp.status})`);
-        await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
-          muxAssetId: args.muxAssetId,
-          askQuestionsStatus: "failed",
-        });
-        await ctx.scheduler.runAfter(0, internal.moderation.applyAutoActions, {
-          muxAssetId: args.muxAssetId,
-          skipAutoActions: args.skipAutoActions,
-        });
-        return;
-      }
-
-      const job = (await resp.json()).data;
-
-      if (job.status === "completed") {
-        const answers = job.outputs.answers.map(
-          (a: {
-            question: string;
-            answer: string | null;
-            confidence: number;
-            reasoning: string;
-            skipped: boolean;
-          }) => ({
-            question: a.question,
-            answer: a.answer ?? undefined,
-            confidence: a.confidence,
-            reasoning: a.reasoning,
-            skipped: a.skipped,
-          })
-        );
+      if (job.status === "completed" && job.outputs) {
+        const answers = job.outputs.answers.map((a) => ({
+          question: a.question,
+          answer: a.answer ?? undefined,
+          confidence: a.confidence,
+          reasoning: a.reasoning,
+          skipped: a.skipped,
+        }));
 
         await ctx.runMutation(internal.moderation.updateQuestionAnswers, {
           muxAssetId: args.muxAssetId,
@@ -382,8 +312,6 @@ export const pollAskQuestions = internalAction({
   },
 });
 
-// ─── Rejected webhook ───
-
 // ─── Summarize job ───
 
 export const runSummary = internalAction({
@@ -397,31 +325,13 @@ export const runSummary = internalAction({
     });
 
     try {
-      const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/summarize`, {
-        method: "POST",
-        headers: {
-          Authorization: muxAuthHeader(),
-          "Content-Type": "application/json",
+      const job = await muxClient().robotsPreview.jobs.summarize.create({
+        parameters: {
+          asset_id: args.muxAssetId,
         },
-        body: JSON.stringify({
-          parameters: {
-            asset_id: args.muxAssetId,
-          },
-        }),
       });
 
-      if (!resp.ok) {
-        const body = await resp.text();
-        console.error(`Summarize API error (${resp.status}): ${body}`);
-        await ctx.runMutation(internal.moderation.setSummaryStatus, {
-          muxAssetId: args.muxAssetId,
-          summaryStatus: "failed",
-        });
-        return;
-      }
-
-      const data = await resp.json();
-      const jobId = data.data.id as string;
+      const jobId = job.id;
 
       await ctx.scheduler.runAfter(
         POLL_INTERVAL_MS,
@@ -450,28 +360,15 @@ export const pollSummary = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      const resp = await fetch(
-        `${MUX_BASE_URL}/robots/v0/jobs/summarize/${args.jobId}`,
-        { headers: { Authorization: muxAuthHeader() } }
+      const job = await muxClient().robotsPreview.jobs.summarize.retrieve(
+        args.jobId
       );
 
-      if (!resp.ok) {
-        console.error(`Summarize poll error (${resp.status})`);
-        await ctx.runMutation(internal.moderation.setSummaryStatus, {
-          muxAssetId: args.muxAssetId,
-          summaryStatus: "failed",
-        });
-        return;
-      }
-
-      const job = (await resp.json()).data;
-
-      if (job.status === "completed") {
-        const outputs = job.outputs ?? {};
-        const summary = outputs.description ?? outputs.summary ?? outputs.text ?? "";
+      if (job.status === "completed" && job.outputs) {
+        const outputs = job.outputs;
         await ctx.runMutation(internal.moderation.updateSummary, {
           muxAssetId: args.muxAssetId,
-          summary,
+          summary: outputs.description ?? "",
           summaryTitle: outputs.title ?? undefined,
           summaryTags: Array.isArray(outputs.tags) ? outputs.tags : undefined,
           summaryJobId: args.jobId,
