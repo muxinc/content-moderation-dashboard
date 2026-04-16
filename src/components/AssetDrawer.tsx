@@ -249,12 +249,28 @@ export function AssetDrawer({
                       Summary
                     </p>
                   </div>
-                  <div className="px-4 py-3">
+                  <div className="px-4 py-3 space-y-2">
                     {moderation.summaryStatus === "processing" ? (
                       <p className="text-sm text-zinc-400 italic">Generating summary...</p>
-                    ) : moderation.summary ? (
-                      <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">{moderation.summary}</p>
-                    ) : null}
+                    ) : (
+                      <>
+                        {moderation.summaryTitle && (
+                          <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{moderation.summaryTitle}</p>
+                        )}
+                        {moderation.summary && (
+                          <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">{moderation.summary}</p>
+                        )}
+                        {moderation.summaryTags?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {moderation.summaryTags.map((tag: string) => (
+                              <span key={tag} className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               )}

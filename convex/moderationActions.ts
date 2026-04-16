@@ -36,7 +36,7 @@ export const runModeration = internalAction({
     });
 
     try {
-      const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/moderate`, {
+      const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/moderate`, {
         method: "POST",
         headers: {
           Authorization: muxAuthHeader(),
@@ -109,7 +109,7 @@ export const pollModeration = internalAction({
   handler: async (ctx, args) => {
     try {
       const resp = await fetch(
-        `${MUX_BASE_URL}/robots/v1/jobs/moderate/${args.robotsJobId}`,
+        `${MUX_BASE_URL}/robots/v0/jobs/moderate/${args.robotsJobId}`,
         { headers: { Authorization: muxAuthHeader() } }
       );
 
@@ -208,7 +208,7 @@ export const runAskQuestions = internalAction({
     });
 
     try {
-      const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/ask-questions`, {
+      const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/ask-questions`, {
         method: "POST",
         headers: {
           Authorization: muxAuthHeader(),
@@ -279,7 +279,7 @@ export const pollAskQuestions = internalAction({
   handler: async (ctx, args) => {
     try {
       const resp = await fetch(
-        `${MUX_BASE_URL}/robots/v1/jobs/ask-questions/${args.jobId}`,
+        `${MUX_BASE_URL}/robots/v0/jobs/ask-questions/${args.jobId}`,
         { headers: { Authorization: muxAuthHeader() } }
       );
 
@@ -397,7 +397,7 @@ export const runSummary = internalAction({
     });
 
     try {
-      const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/summarize`, {
+      const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/summarize`, {
         method: "POST",
         headers: {
           Authorization: muxAuthHeader(),
@@ -451,7 +451,7 @@ export const pollSummary = internalAction({
   handler: async (ctx, args) => {
     try {
       const resp = await fetch(
-        `${MUX_BASE_URL}/robots/v1/jobs/summarize/${args.jobId}`,
+        `${MUX_BASE_URL}/robots/v0/jobs/summarize/${args.jobId}`,
         { headers: { Authorization: muxAuthHeader() } }
       );
 
@@ -467,10 +467,13 @@ export const pollSummary = internalAction({
       const job = (await resp.json()).data;
 
       if (job.status === "completed") {
-        const summary = job.outputs?.summary ?? job.outputs?.text ?? "";
+        const outputs = job.outputs ?? {};
+        const summary = outputs.description ?? outputs.summary ?? outputs.text ?? "";
         await ctx.runMutation(internal.moderation.updateSummary, {
           muxAssetId: args.muxAssetId,
           summary,
+          summaryTitle: outputs.title ?? undefined,
+          summaryTags: Array.isArray(outputs.tags) ? outputs.tags : undefined,
           summaryJobId: args.jobId,
         });
         return;

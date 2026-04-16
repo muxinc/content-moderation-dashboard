@@ -338,6 +338,8 @@ export const setProcessing = internalMutation({
       askQuestionsStatus: undefined,
       questionAnswers: undefined,
       summary: undefined,
+      summaryTitle: undefined,
+      summaryTags: undefined,
       summaryStatus: undefined,
       summaryJobId: undefined,
       updatedAt: Date.now(),
@@ -411,6 +413,8 @@ export const updateSummary = internalMutation({
   args: {
     muxAssetId: v.string(),
     summary: v.string(),
+    summaryTitle: v.optional(v.string()),
+    summaryTags: v.optional(v.array(v.string())),
     summaryJobId: v.string(),
   },
   handler: async (ctx, args) => {
@@ -421,6 +425,8 @@ export const updateSummary = internalMutation({
     if (!existing) return;
     await ctx.db.patch(existing._id, {
       summary: args.summary,
+      summaryTitle: args.summaryTitle,
+      summaryTags: args.summaryTags,
       summaryJobId: args.summaryJobId,
       summaryStatus: "completed",
       updatedAt: Date.now(),

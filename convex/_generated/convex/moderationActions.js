@@ -30,7 +30,7 @@ export const runModeration = internalAction({
             muxAssetId: args.muxAssetId,
         });
         try {
-            const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/moderate`, {
+            const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/moderate`, {
                 method: "POST",
                 headers: {
                     Authorization: muxAuthHeader(),
@@ -92,7 +92,7 @@ export const pollModeration = internalAction({
     },
     handler: async (ctx, args) => {
         try {
-            const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/moderate/${args.robotsJobId}`, { headers: { Authorization: muxAuthHeader() } });
+            const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/moderate/${args.robotsJobId}`, { headers: { Authorization: muxAuthHeader() } });
             if (!resp.ok) {
                 const body = await resp.text();
                 throw new Error(`Mux Robots poll error (${resp.status}): ${body}`);
@@ -174,7 +174,7 @@ export const runAskQuestions = internalAction({
             askQuestionsStatus: "processing",
         });
         try {
-            const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/ask-questions`, {
+            const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/ask-questions`, {
                 method: "POST",
                 headers: {
                     Authorization: muxAuthHeader(),
@@ -236,7 +236,7 @@ export const pollAskQuestions = internalAction({
     },
     handler: async (ctx, args) => {
         try {
-            const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/ask-questions/${args.jobId}`, { headers: { Authorization: muxAuthHeader() } });
+            const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/ask-questions/${args.jobId}`, { headers: { Authorization: muxAuthHeader() } });
             if (!resp.ok) {
                 console.error(`Ask-questions poll error (${resp.status})`);
                 await ctx.runMutation(internal.moderation.setAskQuestionsStatus, {
@@ -330,7 +330,7 @@ export const runSummary = internalAction({
             summaryStatus: "processing",
         });
         try {
-            const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/summarize`, {
+            const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/summarize`, {
                 method: "POST",
                 headers: {
                     Authorization: muxAuthHeader(),
@@ -376,7 +376,7 @@ export const pollSummary = internalAction({
     },
     handler: async (ctx, args) => {
         try {
-            const resp = await fetch(`${MUX_BASE_URL}/robots/v1/jobs/summarize/${args.jobId}`, { headers: { Authorization: muxAuthHeader() } });
+            const resp = await fetch(`${MUX_BASE_URL}/robots/v0/jobs/summarize/${args.jobId}`, { headers: { Authorization: muxAuthHeader() } });
             if (!resp.ok) {
                 console.error(`Summarize poll error (${resp.status})`);
                 await ctx.runMutation(internal.moderation.setSummaryStatus, {
@@ -387,10 +387,13 @@ export const pollSummary = internalAction({
             }
             const job = (await resp.json()).data;
             if (job.status === "completed") {
-                const summary = job.outputs?.summary ?? job.outputs?.text ?? "";
+                const outputs = job.outputs ?? {};
+                const summary = outputs.description ?? outputs.summary ?? outputs.text ?? "";
                 await ctx.runMutation(internal.moderation.updateSummary, {
                     muxAssetId: args.muxAssetId,
                     summary,
+                    summaryTitle: outputs.title ?? undefined,
+                    summaryTags: Array.isArray(outputs.tags) ? outputs.tags : undefined,
                     summaryJobId: args.jobId,
                 });
                 return;

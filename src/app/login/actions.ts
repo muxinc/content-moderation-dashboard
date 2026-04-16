@@ -1,16 +1,15 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function login(
-  _prevState: { error?: string },
+  _prevState: { error?: string; success?: boolean },
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; success?: boolean }> {
   const password = formData.get("password") as string;
   const expected = process.env.ADMIN_PASSWORD;
 
@@ -30,5 +29,5 @@ export async function login(
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
 
-  redirect("/");
+  return { success: true };
 }
