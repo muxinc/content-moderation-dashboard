@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useAuthMutation } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import type { Thresholds } from "@/app/page";
 
@@ -10,7 +10,7 @@ export function ThresholdSettings({
 }: {
   thresholds: Thresholds;
 }) {
-  const updateSettings = useMutation(api.settings.update);
+  const updateSettings = useAuthMutation(api.settings.update);
 
   const [local, setLocal] = useState({
     sexualReview: Math.round(thresholds.sexual.review * 100),

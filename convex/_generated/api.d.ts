@@ -8,12 +8,15 @@
  * @module
  */
 
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as migrations from "../migrations.js";
 import type * as moderation from "../moderation.js";
 import type * as moderationActions from "../moderationActions.js";
 import type * as muxWebhook from "../muxWebhook.js";
 import type * as questions from "../questions.js";
+import type * as sessions from "../sessions.js";
 import type * as settings from "../settings.js";
 import type * as uploads from "../uploads.js";
 import type * as videoQueries from "../videoQueries.js";
@@ -25,12 +28,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
   http: typeof http;
+  "lib/auth": typeof lib_auth;
   migrations: typeof migrations;
   moderation: typeof moderation;
   moderationActions: typeof moderationActions;
   muxWebhook: typeof muxWebhook;
   questions: typeof questions;
+  sessions: typeof sessions;
   settings: typeof settings;
   uploads: typeof uploads;
   videoQueries: typeof videoQueries;

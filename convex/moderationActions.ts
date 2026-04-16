@@ -1,8 +1,9 @@
 "use node";
 
 import { v } from "convex/values";
-import { action, internalAction } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internalAction } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { authenticatedAction } from "./lib/auth";
 
 const MUX_BASE_URL = "https://api.mux.com";
 const POLL_INTERVAL_MS = 5_000;
@@ -197,7 +198,7 @@ export const runAskQuestions = internalAction({
   },
   handler: async (ctx, args) => {
     // Fetch configured questions
-    const questions = await ctx.runQuery(api.questions.list);
+    const questions = await ctx.runQuery(internal.questions.listInternal);
     if (questions.length === 0) return;
 
     // Mark Q&A as in-progress so the coordinator knows to wait
@@ -524,7 +525,7 @@ export const fireRejectedWebhook = internalAction({
     ),
   },
   handler: async (ctx, args) => {
-    const settings = await ctx.runQuery(api.settings.get);
+    const settings = await ctx.runQuery(internal.settings.getInternal);
     const webhookUrl = settings.rejectedWebhookUrl;
     if (!webhookUrl) return;
 
@@ -567,7 +568,7 @@ export const fireRejectedWebhook = internalAction({
 
 // ─── Public trigger ───
 
-export const triggerModeration = action({
+export const triggerModeration = authenticatedAction({
   args: {
     muxAssetId: v.string(),
   },

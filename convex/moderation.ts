@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 import {
   internalMutation,
-  mutation,
-  query,
+  internalQuery,
 } from "./_generated/server";
 import { components, internal } from "./_generated/api";
+import { authenticatedQuery, authenticatedMutation } from "./lib/auth";
 
 // ---------- Queries ----------
 
-export const list = query({
+export const list = authenticatedQuery({
   args: {
     limit: v.optional(v.number()),
   },
@@ -24,7 +24,7 @@ export const list = query({
 /**
  * List moderation results with server-side filtering, enriched with asset data.
  */
-export const listWithAssets = query({
+export const listWithAssets = authenticatedQuery({
   args: {
     limit: v.optional(v.number()),
     jobFilter: v.optional(
@@ -174,7 +174,7 @@ export const listWithAssets = query({
 /**
  * Get counts for each filter category.
  */
-export const counts = query({
+export const counts = authenticatedQuery({
   args: {},
   handler: async (ctx) => {
     const all = await ctx.db
@@ -216,7 +216,18 @@ export const counts = query({
   },
 });
 
-export const getByAssetId = query({
+export const getByAssetId = authenticatedQuery({
+  args: { muxAssetId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("moderationResults")
+      .withIndex("by_mux_asset_id", (q) => q.eq("muxAssetId", args.muxAssetId))
+      .first();
+  },
+});
+
+// Internal version for use by other Convex functions (no auth required)
+export const getByAssetIdInternal = internalQuery({
   args: { muxAssetId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
@@ -228,7 +239,7 @@ export const getByAssetId = query({
 
 // ---------- Mutations ----------
 
-export const createPending = mutation({
+export const createPending = authenticatedMutation({
   args: { muxAssetId: v.string() },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -445,7 +456,7 @@ export const updateQuestionAnswers = internalMutation({
   },
 });
 
-export const setReviewStatus = mutation({
+export const setReviewStatus = authenticatedMutation({
   args: {
     muxAssetId: v.string(),
     reviewStatus: v.union(
@@ -475,7 +486,7 @@ export const setReviewStatus = mutation({
   },
 });
 
-export const bulkSetReviewStatus = mutation({
+export const bulkSetReviewStatus = authenticatedMutation({
   args: {
     muxAssetIds: v.array(v.string()),
     reviewStatus: v.union(

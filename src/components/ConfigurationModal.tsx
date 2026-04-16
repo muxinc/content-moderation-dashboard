@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useAuthQuery, useAuthMutation } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import type { Thresholds } from "@/app/page";
 
@@ -12,11 +12,11 @@ export function ConfigurationModal({
   thresholds: Thresholds;
   onCloseAction: () => void;
 }) {
-  const settings = useQuery(api.settings.get);
-  const updateSettings = useMutation(api.settings.update);
-  const questions = useQuery(api.questions.list);
-  const addQuestion = useMutation(api.questions.add);
-  const removeQuestion = useMutation(api.questions.remove);
+  const settings = useAuthQuery(api.settings.get, {});
+  const updateSettings = useAuthMutation(api.settings.update);
+  const questions = useAuthQuery(api.questions.list, {});
+  const addQuestion = useAuthMutation(api.questions.add);
+  const removeQuestion = useAuthMutation(api.questions.remove);
 
   const [newQuestion, setNewQuestion] = useState("");
 

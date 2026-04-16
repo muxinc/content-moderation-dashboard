@@ -1,11 +1,11 @@
 "use client";
 
-import { useAction } from "convex/react";
+import { useAuthAction } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import { useCallback, useRef, useState } from "react";
 
 export function UploadForm() {
-  const createUploadUrl = useAction(api.uploads.createUploadUrl);
+  const createUploadUrl = useAuthAction(api.uploads.createUploadUrl);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);

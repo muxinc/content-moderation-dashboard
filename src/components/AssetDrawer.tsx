@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
-import { useMutation, useAction } from "convex/react";
+import { useAuthQuery, useAuthMutation, useAuthAction } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import MuxPlayer from "@mux/mux-player-react";
 import type { Thresholds } from "@/app/page";
@@ -38,10 +37,10 @@ export function AssetDrawer({
   thresholds: Thresholds;
   onCloseAction: () => void;
 }) {
-  const moderation = useQuery(api.moderation.getByAssetId, { muxAssetId });
-  const asset = useQuery(api.videoQueries.getAsset, { muxAssetId });
-  const setReviewStatus = useMutation(api.moderation.setReviewStatus);
-  const triggerModeration = useAction(api.moderationActions.triggerModeration);
+  const moderation = useAuthQuery(api.moderation.getByAssetId, { muxAssetId });
+  const asset = useAuthQuery(api.videoQueries.getAsset, { muxAssetId });
+  const setReviewStatus = useAuthMutation(api.moderation.setReviewStatus);
+  const triggerModeration = useAuthAction(api.moderationActions.triggerModeration);
   const [expandedFrame, setExpandedFrame] = useState<number | null>(null);
   const [thumbnailFilter, setThumbnailFilter] = useState<"flagged" | "all">("flagged");
 

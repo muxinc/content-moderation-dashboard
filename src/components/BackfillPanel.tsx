@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useAction, useQuery } from "convex/react";
+import { useAuthAction, useAuthQuery } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 
 export function BackfillPanel() {
-  const backfillMux = useAction(api.migrations.backfillMux);
-  const settings = useQuery(api.settings.get);
-  const questions = useQuery(api.questions.list);
+  const backfillMux = useAuthAction(api.migrations.backfillMux);
+  const settings = useAuthQuery(api.settings.get, {});
+  const questions = useAuthQuery(api.questions.list, {});
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [maxAssets, setMaxAssets] = useState(50);

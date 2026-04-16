@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
-export const list = query({
+import { internalQuery } from "./_generated/server";
+import { authenticatedQuery, authenticatedMutation } from "./lib/auth";
+export const list = authenticatedQuery({
     args: {},
     handler: async (ctx) => {
         return await ctx.db
@@ -10,7 +11,18 @@ export const list = query({
             .take(50);
     },
 });
-export const add = mutation({
+// Internal version for use by other Convex functions (no auth required)
+export const listInternal = internalQuery({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db
+            .query("moderationQuestions")
+            .withIndex("by_created_at")
+            .order("asc")
+            .take(50);
+    },
+});
+export const add = authenticatedMutation({
     args: {
         question: v.string(),
         answerOptions: v.optional(v.array(v.string())),
@@ -23,7 +35,7 @@ export const add = mutation({
         });
     },
 });
-export const remove = mutation({
+export const remove = authenticatedMutation({
     args: { id: v.id("moderationQuestions") },
     handler: async (ctx, args) => {
         await ctx.db.delete(args.id);

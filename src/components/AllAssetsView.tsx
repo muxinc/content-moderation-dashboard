@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useQuery } from "convex/react";
+import { useAuthAction, useAuthQuery } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import { AssetRow, TableShell } from "./TableShell";
 import type { Thresholds } from "@/app/page";
@@ -43,8 +43,8 @@ export function AllAssetsView({
   onPageChangeAction: (offset: number) => void;
   pageSize: number;
 }) {
-  const triggerModeration = useAction(api.moderationActions.triggerModeration);
-  const questions = useQuery(api.questions.list);
+  const triggerModeration = useAuthAction(api.moderationActions.triggerModeration);
+  const questions = useAuthQuery(api.questions.list, {});
   const questionTexts = questions?.map((q) => q.question) ?? [];
 
   if (!data) {

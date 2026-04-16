@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useAction, useMutation } from "convex/react";
+import { useAuthQuery, useAuthAction, useAuthMutation } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import { AssetRow, TableShell } from "./TableShell";
 import type { Thresholds, JobFilter, ReviewFilter, ClassificationFilter } from "@/app/page";
@@ -64,10 +64,10 @@ export function ModerationResultsView({
   onResetFiltersAction: () => void;
   onSelectAssetAction: (muxAssetId: string) => void;
 }) {
-  const triggerModeration = useAction(api.moderationActions.triggerModeration);
-  const bulkSetReviewStatus = useMutation(api.moderation.bulkSetReviewStatus);
-  const counts = useQuery(api.moderation.counts);
-  const questions = useQuery(api.questions.list);
+  const triggerModeration = useAuthAction(api.moderationActions.triggerModeration);
+  const bulkSetReviewStatus = useAuthMutation(api.moderation.bulkSetReviewStatus);
+  const counts = useAuthQuery(api.moderation.counts, {});
+  const questions = useAuthQuery(api.questions.list, {});
   const questionTexts = questions?.map((q) => q.question) ?? [];
   const [selected, setSelected] = useState<Set<string>>(new Set());
 

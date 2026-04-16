@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "convex/react";
+import { useAuthMutation } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import type { Thresholds } from "@/app/page";
 import type { ReactNode } from "react";
@@ -142,7 +142,7 @@ export function AssetRow({
   onClickAction: () => void;
   onModerateAction: () => void;
 }) {
-  const setReviewStatus = useMutation(api.moderation.setReviewStatus);
+  const setReviewStatus = useAuthMutation(api.moderation.setReviewStatus);
   const thumbUrl = playbackId
     ? `https://image.mux.com/${playbackId}/thumbnail.webp?width=160&height=90&fit_mode=smartcrop`
     : null;

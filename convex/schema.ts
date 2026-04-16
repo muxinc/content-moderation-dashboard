@@ -138,6 +138,15 @@ export default defineSchema({
     .index("by_mux_asset_id", ["muxAssetId"])
     .index("by_created_at", ["createdAt"]),
 
+  // Auth sessions
+  sessions: defineTable({
+    token: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_expires_at", ["expiresAt"]),
+
   // Configured Q&A questions to run on every asset
   moderationQuestions: defineTable({
     question: v.string(),

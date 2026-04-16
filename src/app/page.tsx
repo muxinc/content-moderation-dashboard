@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, Suspense } from "react";
-import { useQuery } from "convex/react";
+import { useAuthQuery } from "@/lib/convex-auth";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "../../convex/_generated/api";
 import { UploadForm } from "@/components/UploadForm";
@@ -67,14 +67,14 @@ function HomeContent() {
   const setReviewFilter = useCallback((f: ReviewFilter) => setParam("review", f), [setParam]);
   const setClassificationFilter = useCallback((f: ClassificationFilter) => setParam("classification", f), [setParam]);
 
-  const moderationData = useQuery(api.moderation.listWithAssets, {
+  const moderationData = useAuthQuery(api.moderation.listWithAssets, {
     limit: 50,
     jobFilter,
     reviewFilter,
     classificationFilter,
   });
 
-  const settings = useQuery(api.settings.get);
+  const settings = useAuthQuery(api.settings.get, {});
 
   const openAsset = useCallback(
     (muxAssetId: string) => setParam("asset", muxAssetId),

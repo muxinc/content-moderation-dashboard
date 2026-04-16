@@ -27,6 +27,7 @@ export default function LoginPage() {
               id="password"
               name="password"
               type="password"
+              autoFocus
               autoComplete="current-password"
               required
               placeholder="Password"

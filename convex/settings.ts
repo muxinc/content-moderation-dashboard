@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { internalQuery } from "./_generated/server";
+import { authenticatedQuery, authenticatedMutation } from "./lib/auth";
 
 const DEFAULT_SETTINGS = {
   sexual: { review: 0.9, reject: undefined as number | undefined },
@@ -11,20 +12,33 @@ const DEFAULT_SETTINGS = {
   bypassRules: [] as { question: string; answer: string }[],
 };
 
-export const get = query({
+function settingsFromDoc(settings: { sexual: { review: number; reject?: number }; violence: { review: number; reject?: number }; rejectedWebhookUrl?: string; webhookHeaderKey?: string; webhookHeaderValue?: string; rejectionRules?: { question: string; answer: string }[]; bypassRules?: { question: string; answer: string }[] } | null) {
+  if (!settings) return DEFAULT_SETTINGS;
+  return {
+    sexual: settings.sexual,
+    violence: settings.violence,
+    rejectedWebhookUrl: settings.rejectedWebhookUrl ?? "",
+    webhookHeaderKey: settings.webhookHeaderKey ?? "",
+    webhookHeaderValue: settings.webhookHeaderValue ?? "",
+    rejectionRules: settings.rejectionRules ?? [],
+    bypassRules: settings.bypassRules ?? [],
+  };
+}
+
+export const get = authenticatedQuery({
   args: {},
   handler: async (ctx) => {
     const settings = await ctx.db.query("moderationSettings").first();
-    if (!settings) return DEFAULT_SETTINGS;
-    return {
-      sexual: settings.sexual,
-      violence: settings.violence,
-      rejectedWebhookUrl: settings.rejectedWebhookUrl ?? "",
-      webhookHeaderKey: settings.webhookHeaderKey ?? "",
-      webhookHeaderValue: settings.webhookHeaderValue ?? "",
-      rejectionRules: settings.rejectionRules ?? [],
-      bypassRules: settings.bypassRules ?? [],
-    };
+    return settingsFromDoc(settings);
+  },
+});
+
+// Internal version for use by other Convex functions (no auth required)
+export const getInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const settings = await ctx.db.query("moderationSettings").first();
+    return settingsFromDoc(settings);
   },
 });
 
@@ -43,7 +57,7 @@ const rejectionRuleValidator = v.object({
   answer: v.string(),
 });
 
-export const update = mutation({
+export const update = authenticatedMutation({
   args: {
     sexual: dimensionThresholds,
     violence: dimensionThresholds,

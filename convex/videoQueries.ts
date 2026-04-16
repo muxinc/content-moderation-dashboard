@@ -1,13 +1,8 @@
-import { query } from "./_generated/server";
 import { components } from "./_generated/api";
 import { v } from "convex/values";
+import { authenticatedQuery } from "./lib/auth";
 
-/**
- * List assets enriched with their moderation results.
- * Filters out deleted/errored assets.
- * Simple offset-based pagination since the component doesn't support cursors.
- */
-export const listAssetsWithModeration = query({
+export const listAssetsWithModeration = authenticatedQuery({
   args: {
     limit: v.optional(v.number()),
     offset: v.optional(v.number()),
@@ -16,12 +11,10 @@ export const listAssetsWithModeration = query({
     const limit = args.limit ?? 25;
     const offset = args.offset ?? 0;
 
-    // Fetch more than we need to account for filtering
     const allAssets = await ctx.runQuery(components.mux.catalog.listAssets, {
       limit: 500,
     });
 
-    // Filter to live assets only
     const liveAssets = allAssets.filter(
       (a: { status?: string }) => a.status === "ready" || a.status === "preparing"
     );
@@ -29,7 +22,6 @@ export const listAssetsWithModeration = query({
     const total = liveAssets.length;
     const page = liveAssets.slice(offset, offset + limit);
 
-    // Batch-fetch all moderation results and build a lookup map
     const allModeration = await ctx.db
       .query("moderationResults")
       .withIndex("by_created_at")
@@ -58,7 +50,7 @@ export const listAssetsWithModeration = query({
   },
 });
 
-export const listAssets = query({
+export const listAssets = authenticatedQuery({
   args: {
     limit: v.optional(v.number()),
   },
@@ -69,7 +61,7 @@ export const listAssets = query({
   },
 });
 
-export const getAsset = query({
+export const getAsset = authenticatedQuery({
   args: {
     muxAssetId: v.string(),
   },

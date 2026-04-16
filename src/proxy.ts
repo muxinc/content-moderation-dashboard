@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createHash } from "node:crypto";
-
-function expectedToken(): string | null {
-  const password = process.env.ADMIN_PASSWORD;
-  if (!password) return null;
-  return createHash("sha256").update(`${password}:cm-session`).digest("hex");
-}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip auth check for the login page and static assets
+  // Skip auth check for the login page, API routes, and static assets
   if (
     pathname === "/login" ||
+    pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon")
   ) {
@@ -21,11 +15,11 @@ export function proxy(request: NextRequest) {
   }
 
   // If no ADMIN_PASSWORD is set, allow all access
-  const token = expectedToken();
-  if (!token) return NextResponse.next();
+  if (!process.env.ADMIN_PASSWORD) return NextResponse.next();
 
+  // Check for session cookie (actual validation happens in Convex)
   const cookie = request.cookies.get("admin_session");
-  if (cookie?.value === token) {
+  if (cookie?.value) {
     return NextResponse.next();
   }
 

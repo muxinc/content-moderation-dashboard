@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useAuthQuery, useAuthMutation } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 
 export function QuestionManager() {
-  const questions = useQuery(api.questions.list);
-  const addQuestion = useMutation(api.questions.add);
-  const removeQuestion = useMutation(api.questions.remove);
+  const questions = useAuthQuery(api.questions.list, {});
+  const addQuestion = useAuthMutation(api.questions.add);
+  const removeQuestion = useAuthMutation(api.questions.remove);
   const [newQuestion, setNewQuestion] = useState("");
 
   const handleAdd = async () => {

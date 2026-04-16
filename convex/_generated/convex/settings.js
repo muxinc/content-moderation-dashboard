@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { internalQuery } from "./_generated/server";
+import { authenticatedQuery, authenticatedMutation } from "./lib/auth";
 const DEFAULT_SETTINGS = {
     sexual: { review: 0.9, reject: undefined },
     violence: { review: 0.9, reject: undefined },
@@ -9,21 +10,32 @@ const DEFAULT_SETTINGS = {
     rejectionRules: [],
     bypassRules: [],
 };
-export const get = query({
+function settingsFromDoc(settings) {
+    if (!settings)
+        return DEFAULT_SETTINGS;
+    return {
+        sexual: settings.sexual,
+        violence: settings.violence,
+        rejectedWebhookUrl: settings.rejectedWebhookUrl ?? "",
+        webhookHeaderKey: settings.webhookHeaderKey ?? "",
+        webhookHeaderValue: settings.webhookHeaderValue ?? "",
+        rejectionRules: settings.rejectionRules ?? [],
+        bypassRules: settings.bypassRules ?? [],
+    };
+}
+export const get = authenticatedQuery({
     args: {},
     handler: async (ctx) => {
         const settings = await ctx.db.query("moderationSettings").first();
-        if (!settings)
-            return DEFAULT_SETTINGS;
-        return {
-            sexual: settings.sexual,
-            violence: settings.violence,
-            rejectedWebhookUrl: settings.rejectedWebhookUrl ?? "",
-            webhookHeaderKey: settings.webhookHeaderKey ?? "",
-            webhookHeaderValue: settings.webhookHeaderValue ?? "",
-            rejectionRules: settings.rejectionRules ?? [],
-            bypassRules: settings.bypassRules ?? [],
-        };
+        return settingsFromDoc(settings);
+    },
+});
+// Internal version for use by other Convex functions (no auth required)
+export const getInternal = internalQuery({
+    args: {},
+    handler: async (ctx) => {
+        const settings = await ctx.db.query("moderationSettings").first();
+        return settingsFromDoc(settings);
     },
 });
 const dimensionThresholds = v.object({
@@ -38,7 +50,7 @@ const rejectionRuleValidator = v.object({
     question: v.string(),
     answer: v.string(),
 });
-export const update = mutation({
+export const update = authenticatedMutation({
     args: {
         sexual: dimensionThresholds,
         violence: dimensionThresholds,

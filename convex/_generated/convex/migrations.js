@@ -1,8 +1,9 @@
 "use node";
 import Mux from "@mux/mux-node";
-import { action, internalAction } from "./_generated/server";
-import { api, components, internal } from "./_generated/api";
+import { internalAction } from "./_generated/server";
+import { components, internal } from "./_generated/api";
 import { v } from "convex/values";
+import { authenticatedAction } from "./lib/auth";
 function requiredEnv(name, value) {
     if (!value)
         throw new Error(`Missing env var: ${name}`);
@@ -53,7 +54,7 @@ function parseMetadataPassthrough(passthrough) {
 /**
  * Public action — fires the backfill in the background and returns immediately.
  */
-export const backfillMux = action({
+export const backfillMux = authenticatedAction({
     args: {
         maxAssets: v.optional(v.number()),
         defaultUserId: v.optional(v.string()),
@@ -116,7 +117,7 @@ export const runBackfill = internalAction({
             // Stagger at 3s intervals to stay under Mux Robots 1 RPS limit
             // (each job creates 3 API calls spaced 1s apart: moderate, ask-questions, summarize).
             if (args.runModeration && asset.status === "ready") {
-                const existing = await ctx.runQuery(api.moderation.getByAssetId, {
+                const existing = await ctx.runQuery(internal.moderation.getByAssetIdInternal, {
                     muxAssetId: asset.id,
                 });
                 if (!existing || existing.status === "failed") {
