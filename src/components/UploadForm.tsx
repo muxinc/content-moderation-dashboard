@@ -19,6 +19,7 @@ export function UploadForm() {
         const { uploadUrl } = await createUploadUrl({
           corsOrigin: window.location.origin,
         });
+        if (!uploadUrl) throw new Error("Failed to create upload URL");
 
         const xhr = new XMLHttpRequest();
         await new Promise<void>((resolve, reject) => {
