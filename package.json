@@ -7,11 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "rm -f node_modules/@mux/convex/bin/cli.mjs node_modules/@mux/convex/bin/init.mjs"
+    "postinstall": "rm -rf node_modules/@mux/convex/node_modules/@mux/mux-node"
+  },
+  "overrides": {
+    "@mux/convex": {
+      "@mux/mux-node": "$@mux/mux-node"
+    }
   },
   "dependencies": {
     "@mux/ai": "^0.11.0",
-    "@mux/convex": "^0.2.0",
+    "@mux/convex": "^0.3.1",
     "@mux/mux-node": "^14.0.0",
     "@mux/mux-player-react": "^3.11.6",
     "convex": "^1.34.0",
