@@ -260,7 +260,7 @@ export function AssetDrawer({
                         {moderation.summary && (
                           <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">{moderation.summary}</p>
                         )}
-                        {moderation.summaryTags?.length > 0 && (
+                        {(moderation.summaryTags?.length ?? 0) > 0 && (
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {moderation.summaryTags.map((tag: string) => (
                               <span key={tag} className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
