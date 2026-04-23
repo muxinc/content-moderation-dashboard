@@ -495,16 +495,30 @@ export const applyAutoActions = internalMutation({
             return;
         if (result.autoActionApplied)
             return;
-        // If caller asked to skip (e.g. backfill), just mark as processed
+        // Load settings
+        const settings = await ctx.db.query("moderationSettings").first();
+        // If caller asked to skip (e.g. backfill), skip auto-reject but still evaluate auto-approve
         if (args.skipAutoActions) {
+            const scores = result.maxScores;
+            if (scores) {
+                const belowReview = scores.sexual < (settings?.sexual.review ?? 0.9) &&
+                    scores.violence < (settings?.violence.review ?? 0.9);
+                if (belowReview) {
+                    await ctx.db.patch(result._id, {
+                        reviewStatus: "auto-approved",
+                        autoActionApplied: true,
+                        reviewedAt: Date.now(),
+                        updatedAt: Date.now(),
+                    });
+                    return;
+                }
+            }
             await ctx.db.patch(result._id, {
                 autoActionApplied: true,
                 updatedAt: Date.now(),
             });
             return;
         }
-        // Load settings
-        const settings = await ctx.db.query("moderationSettings").first();
         const rejectionRules = settings?.rejectionRules ?? [];
         // Auto-reject is enabled if any reject threshold is set
         const hasRejectThreshold = settings?.sexual.reject != null || settings?.violence.reject != null;
