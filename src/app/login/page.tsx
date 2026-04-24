@@ -1,18 +1,16 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { login } from "./actions";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, {});
-  const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      router.replace("/");
+      window.location.href = "/";
     }
-  }, [state.success, router]);
+  }, [state.success]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">

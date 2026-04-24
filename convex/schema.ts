@@ -132,6 +132,7 @@ export default defineSchema({
       v.literal("manual")
     ),
     webhookUrl: v.string(),
+    requestBody: v.optional(v.string()),
     httpStatus: v.optional(v.number()),
     responseBody: v.optional(v.string()),
     error: v.optional(v.string()),

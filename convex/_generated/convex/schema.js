@@ -81,6 +81,7 @@ export default defineSchema({
         event: v.literal("rejected"),
         trigger: v.union(v.literal("auto-reject"), v.literal("rule"), v.literal("manual")),
         webhookUrl: v.string(),
+        requestBody: v.optional(v.string()),
         httpStatus: v.optional(v.number()),
         responseBody: v.optional(v.string()),
         error: v.optional(v.string()),

@@ -34,7 +34,8 @@ Then copy the webhook signing secret from Mux and add it as the `MUX_WEBHOOK_SEC
 - **Configurable thresholds** -- set review and reject thresholds per dimension; videos are dynamically classified as Pass, Review, or Reject
 - **Auto-reject** -- when a reject threshold is set, assets exceeding it are automatically rejected and the rejected webhook fires
 - **Q&A rules** -- reject or bypass auto-reject based on Q&A answers (e.g. "reject if 'Is this a professional sports broadcast?' is YES")
-- **Rejected webhook** -- configurable URL that receives a POST when any asset is rejected (auto, rule-based, or manual), with optional authentication header
+- **Rejected webhook** -- configurable URL that receives a POST when any asset is rejected (auto, rule-based, or manual), with full moderation data and optional authentication header
+- **Webhook delivery logs** -- debug page at `/webhooks` showing delivery history with request/response bodies and status codes
 - **Bulk actions** -- select multiple assets and approve, reject, or re-run moderation in batch
 - **Asset detail drawer** -- click any row to open a side panel with a Mux video player, full moderation scores, per-frame thumbnails, and Q&A answers
 - **Import** -- import existing assets from your Mux environment with a modal that shows your current configuration
@@ -129,22 +130,50 @@ Configure a URL to receive a POST request whenever an asset is rejected. The web
 - **Rule-based reject** -- a Q&A rejection rule matched
 - **Manual reject** -- a human clicked Reject or used Bulk Reject
 
-The request body:
+The request body includes the full moderation data:
 
 ```json
 {
   "event": "rejected",
-  "muxAssetId": "abc123...",
+  "mux_asset_id": "abc123...",
   "trigger": "auto-reject",
-  "timestamp": "2025-01-15T12:00:00.000Z"
+  "timestamp": "2025-01-15T12:00:00.000Z",
+  "moderation": {
+    "status": "completed",
+    "exceeds_threshold": true,
+    "max_scores": { "sexual": 0.95, "violence": 0.1 },
+    "thumbnail_scores": [
+      { "sexual": 0.95, "violence": 0.1, "time": 4.5 }
+    ],
+    "review_status": "auto-rejected",
+    "robots_job_id": "job_moderate_xxx"
+  },
+  "summary": {
+    "title": "Video title",
+    "description": "A summary of the video content...",
+    "tags": ["tag1", "tag2"],
+    "robots_job_id": "job_summarize_xxx"
+  },
+  "question_answers": {
+    "robots_job_id": "job_ask_xxx",
+    "answers": [
+      {
+        "question": "Is this an animated video?",
+        "answer": "yes",
+        "confidence": 0.92,
+        "reasoning": "The video contains...",
+        "skipped": false
+      }
+    ]
+  }
 }
 ```
 
-The `trigger` field is one of: `auto-reject`, `rule`, or `manual`.
+The `trigger` field is one of: `auto-reject`, `rule`, or `manual`. Fields that haven't completed yet (e.g. summary still processing) will be `null`.
 
 You can add a **custom header** for authentication (e.g. `X-Webhook-Secret: whsec_...`). Click "Generate Secret" to create a random secret value.
 
-All webhook calls are logged with the HTTP status and response body for debugging.
+All webhook calls are logged with the full request/response bodies. Click **"View delivery logs"** in the webhook configuration section (or navigate to `/webhooks`) to inspect delivery history and debug failures.
 
 ### Customizing the reject action
 
@@ -258,6 +287,7 @@ convex/
 
 src/
   app/page.tsx                         Main page with tabs, drawer, config modal
+  app/webhooks/page.tsx                Webhook delivery log / debug page
   components/
     AllAssetsView.tsx                   All Assets tab
     ModerationResultsView.tsx          Moderation Results tab with dual filters + bulk actions

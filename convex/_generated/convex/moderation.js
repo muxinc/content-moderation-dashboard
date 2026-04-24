@@ -459,6 +459,7 @@ export const logWebhook = internalMutation({
         event: v.literal("rejected"),
         trigger: v.union(v.literal("auto-reject"), v.literal("rule"), v.literal("manual")),
         webhookUrl: v.string(),
+        requestBody: v.optional(v.string()),
         httpStatus: v.optional(v.number()),
         responseBody: v.optional(v.string()),
         error: v.optional(v.string()),
@@ -468,6 +469,18 @@ export const logWebhook = internalMutation({
             ...args,
             createdAt: Date.now(),
         });
+    },
+});
+export const listWebhookLogs = authenticatedQuery({
+    args: {
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db
+            .query("webhookLog")
+            .withIndex("by_created_at")
+            .order("desc")
+            .take(args.limit ?? 50);
     },
 });
 // ---------- Auto-Action Coordinator ----------

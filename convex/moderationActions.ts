@@ -429,6 +429,52 @@ export const fireRejectedWebhook = internalAction({
     const webhookUrl = settings.rejectedWebhookUrl;
     if (!webhookUrl) return;
 
+    const result = await ctx.runQuery(internal.moderation.getByAssetIdInternal, {
+      muxAssetId: args.muxAssetId,
+    });
+
+    const payload: Record<string, unknown> = {
+      event: "rejected",
+      mux_asset_id: args.muxAssetId,
+      trigger: args.trigger,
+      timestamp: new Date().toISOString(),
+      moderation: result
+        ? {
+            status: result.status,
+            exceeds_threshold: result.exceedsThreshold ?? null,
+            max_scores: result.maxScores ?? null,
+            thumbnail_scores:
+              result.thumbnailScores?.map((s) => ({
+                sexual: s.sexual,
+                violence: s.violence,
+                time: s.time ?? null,
+              })) ?? null,
+            review_status: result.reviewStatus,
+            robots_job_id: result.robotsJobId ?? null,
+          }
+        : null,
+      summary: result?.summary
+        ? {
+            title: result.summaryTitle ?? null,
+            description: result.summary,
+            tags: result.summaryTags ?? null,
+            robots_job_id: result.summaryJobId ?? null,
+          }
+        : null,
+      question_answers: {
+        robots_job_id: result?.askQuestionsJobId ?? null,
+        answers:
+          result?.questionAnswers?.map((qa) => ({
+            question: qa.question,
+            answer: qa.answer ?? null,
+            confidence: qa.confidence,
+            reasoning: qa.reasoning,
+            skipped: qa.skipped,
+          })) ?? null,
+      },
+    };
+
+    const requestBody = JSON.stringify(payload);
     let httpStatus: number | undefined;
     let responseBody: string | undefined;
     let error: string | undefined;
@@ -441,12 +487,7 @@ export const fireRejectedWebhook = internalAction({
       const resp = await fetch(webhookUrl, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          event: "rejected",
-          muxAssetId: args.muxAssetId,
-          trigger: args.trigger,
-          timestamp: new Date().toISOString(),
-        }),
+        body: requestBody,
       });
       httpStatus = resp.status;
       responseBody = await resp.text();
@@ -459,6 +500,7 @@ export const fireRejectedWebhook = internalAction({
       event: "rejected",
       trigger: args.trigger,
       webhookUrl,
+      requestBody,
       httpStatus,
       responseBody,
       error,

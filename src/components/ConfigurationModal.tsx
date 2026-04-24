@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useAuthQuery, useAuthMutation } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import type { Thresholds } from "@/app/page";
@@ -356,12 +357,20 @@ export function ConfigurationModal({
 
           {/* ── Section: Webhook ── */}
           <section>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-              Rejected Webhook
-            </h3>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Rejected Webhook
+              </h3>
+              <Link
+                href="/webhooks"
+                className="text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 underline underline-offset-2 transition-colors"
+              >
+                View delivery logs
+              </Link>
+            </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
-              When an asset is rejected (auto-reject, rule-based, or manual), send a POST request to this URL.
-              The body includes the asset ID, trigger type, and timestamp.
+              When an asset is rejected (auto-reject, rule-based, or manual), send a POST request to this URL
+              with moderation scores, Q&A answers, and summary data.
             </p>
             <div className="space-y-3">
               <div>
