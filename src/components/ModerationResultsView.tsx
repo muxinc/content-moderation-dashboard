@@ -18,7 +18,7 @@ type ModerationItem = {
   asset: {
     muxAssetId?: string;
     status?: string;
-    playbackIds?: Array<{ id: string; policy: string }>;
+    playbackIds?: Array<{ id: string; policy?: string }>;
     durationSeconds?: number;
   } | null;
 };

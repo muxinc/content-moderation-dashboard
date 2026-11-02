@@ -40,9 +40,11 @@ export function ConfigurationModal({
   const [newRuleQuestion, setNewRuleQuestion] = useState("");
   const [newRuleAnswer, setNewRuleAnswer] = useState("yes");
 
-  // Sync from server
-  useEffect(() => {
-    if (!settings) return;
+  // Sync local form state from the server whenever settings change. Adjusting
+  // state during render (instead of in an effect) avoids an extra render pass.
+  const [syncedSettings, setSyncedSettings] = useState(settings);
+  if (settings && settings !== syncedSettings) {
+    setSyncedSettings(settings);
     setLocal({
       sexualReview: Math.round(settings.sexual.review * 100),
       sexualReject: settings.sexual.reject != null ? Math.round(settings.sexual.reject * 100) : "",
@@ -55,7 +57,7 @@ export function ConfigurationModal({
     setRejectionRules(settings.rejectionRules);
     setBypassRules(settings.bypassRules);
     setDirty(false);
-  }, [settings]);
+  }
 
   // Close on Escape
   useEffect(() => {
