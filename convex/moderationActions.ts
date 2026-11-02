@@ -1,6 +1,6 @@
 "use node";
 
-import Mux from "@mux/mux-node";
+import Mux from "@mux/ts";
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -37,7 +37,7 @@ export const runModeration = internalAction({
     });
 
     try {
-      const job = await muxClient().robotsPreview.jobs.moderate.create({
+      const job = await muxClient().robots.jobs.moderate.create({
         parameters: {
           asset_id: args.muxAssetId,
           thresholds: {
@@ -96,7 +96,7 @@ export const pollModeration = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      const job = await muxClient().robotsPreview.jobs.moderate.retrieve(
+      const job = await muxClient().robots.jobs.moderate.retrieve(
         args.robotsJobId
       );
 
@@ -185,7 +185,7 @@ export const runAskQuestions = internalAction({
     });
 
     try {
-      const job = await muxClient().robotsPreview.jobs.askQuestions.create({
+      const job = await muxClient().robots.jobs.askQuestions.create({
         parameters: {
           asset_id: args.muxAssetId,
           questions: questions.map((q) => ({ question: q.question })),
@@ -232,7 +232,7 @@ export const pollAskQuestions = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      const job = await muxClient().robotsPreview.jobs.askQuestions.retrieve(
+      const job = await muxClient().robots.jobs.askQuestions.retrieve(
         args.jobId
       );
 
@@ -325,7 +325,7 @@ export const runSummary = internalAction({
     });
 
     try {
-      const job = await muxClient().robotsPreview.jobs.summarize.create({
+      const job = await muxClient().robots.jobs.summarize.create({
         parameters: {
           asset_id: args.muxAssetId,
         },
@@ -360,7 +360,7 @@ export const pollSummary = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      const job = await muxClient().robotsPreview.jobs.summarize.retrieve(
+      const job = await muxClient().robots.jobs.summarize.retrieve(
         args.jobId
       );
 

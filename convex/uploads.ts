@@ -1,6 +1,6 @@
 "use node";
 
-import Mux from "@mux/mux-node";
+import Mux from "@mux/ts";
 import { v } from "convex/values";
 import { authenticatedAction } from "./lib/auth";
 
