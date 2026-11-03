@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuthMutation } from "@/lib/convex-auth";
 import { api } from "../../convex/_generated/api";
 import type { Thresholds } from "@/app/page";
@@ -20,7 +20,11 @@ export function ThresholdSettings({
   });
   const [dirty, setDirty] = useState(false);
 
-  useEffect(() => {
+  // Re-sync local form state when the server thresholds change. Adjusting
+  // state during render (instead of in an effect) avoids an extra render pass.
+  const [syncedThresholds, setSyncedThresholds] = useState(thresholds);
+  if (thresholds !== syncedThresholds) {
+    setSyncedThresholds(thresholds);
     setLocal({
       sexualReview: Math.round(thresholds.sexual.review * 100),
       sexualReject: thresholds.sexual.reject != null ? Math.round(thresholds.sexual.reject * 100) : "",
@@ -28,7 +32,7 @@ export function ThresholdSettings({
       violenceReject: thresholds.violence.reject != null ? Math.round(thresholds.violence.reject * 100) : "",
     });
     setDirty(false);
-  }, [thresholds]);
+  }
 
   const sexualError =
     typeof local.sexualReject === "number" &&

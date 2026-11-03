@@ -241,6 +241,8 @@ export const updateResult = internalMutation({
         const { muxAssetId, ...updates } = args;
         await ctx.db.patch(existing._id, {
             ...updates,
+            // A successful run must not carry over the error from a previous failed run.
+            error: args.status === "completed" ? undefined : args.error,
             updatedAt: Date.now(),
         });
     },
@@ -283,6 +285,7 @@ export const setProcessing = internalMutation({
         await ctx.db.patch(existing._id, {
             status: "processing",
             reviewStatus: "unreviewed",
+            error: undefined,
             autoActionApplied: false,
             askQuestionsStatus: undefined,
             questionAnswers: undefined,

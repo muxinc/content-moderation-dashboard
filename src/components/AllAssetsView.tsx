@@ -10,7 +10,7 @@ type PageData = {
     asset: {
       muxAssetId?: string;
       status?: string;
-      playbackIds?: Array<{ id: string; policy: string }>;
+      playbackIds?: Array<{ id: string; policy?: string }>;
       durationSeconds?: number;
     };
     moderation: {

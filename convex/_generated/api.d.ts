@@ -75,43 +75,156 @@ export declare const components: {
         "query",
         "internal",
         { muxAssetId: string },
-        any
+        {
+          _creationTime: number;
+          _id: string;
+          aspectRatio?: string;
+          createdAtMs: number;
+          deletedAtMs?: number;
+          durationSeconds?: number;
+          liveStreamId?: string;
+          maxStoredFrameRate?: number;
+          maxStoredResolution?: string;
+          muxAssetId: string;
+          passthrough?: string;
+          playbackIds?: Array<{ id: string; policy?: string }>;
+          raw: Record<string, any>;
+          status?: string;
+          tracks?: Array<{
+            id?: string;
+            languageCode?: string;
+            name?: string;
+            status?: string;
+            textType?: string;
+            type?: string;
+          }>;
+          updatedAtMs: number;
+          uploadId?: string;
+        } | null
       >;
       getLiveStreamByMuxId: FunctionReference<
         "query",
         "internal",
         { muxLiveStreamId: string },
-        any
+        {
+          _creationTime: number;
+          _id: string;
+          createdAtMs: number;
+          deletedAtMs?: number;
+          muxLiveStreamId: string;
+          playbackIds?: Array<{ id: string; policy?: string }>;
+          raw: Record<string, any>;
+          recentAssetIds?: Array<string>;
+          reconnectWindowSeconds?: number;
+          status?: string;
+          updatedAtMs: number;
+        } | null
       >;
       getUploadByMuxId: FunctionReference<
         "query",
         "internal",
         { muxUploadId: string },
-        any
+        {
+          _creationTime: number;
+          _id: string;
+          assetId?: string;
+          corsOrigin?: string;
+          createdAtMs: number;
+          deletedAtMs?: number;
+          error?: Record<string, any>;
+          muxUploadId: string;
+          raw: Record<string, any>;
+          status?: string;
+          timeoutSeconds?: number;
+          updatedAtMs: number;
+          uploadUrl?: string;
+        } | null
       >;
       listAssets: FunctionReference<
         "query",
         "internal",
         { limit?: number },
-        any
+        Array<{
+          _creationTime: number;
+          _id: string;
+          aspectRatio?: string;
+          createdAtMs: number;
+          deletedAtMs?: number;
+          durationSeconds?: number;
+          liveStreamId?: string;
+          maxStoredFrameRate?: number;
+          maxStoredResolution?: string;
+          muxAssetId: string;
+          passthrough?: string;
+          playbackIds?: Array<{ id: string; policy?: string }>;
+          raw: Record<string, any>;
+          status?: string;
+          tracks?: Array<{
+            id?: string;
+            languageCode?: string;
+            name?: string;
+            status?: string;
+            textType?: string;
+            type?: string;
+          }>;
+          updatedAtMs: number;
+          uploadId?: string;
+        }>
       >;
       listLiveStreams: FunctionReference<
         "query",
         "internal",
         { limit?: number },
-        any
+        Array<{
+          _creationTime: number;
+          _id: string;
+          createdAtMs: number;
+          deletedAtMs?: number;
+          muxLiveStreamId: string;
+          playbackIds?: Array<{ id: string; policy?: string }>;
+          raw: Record<string, any>;
+          recentAssetIds?: Array<string>;
+          reconnectWindowSeconds?: number;
+          status?: string;
+          updatedAtMs: number;
+        }>
       >;
       listRecentEvents: FunctionReference<
         "query",
         "internal",
         { limit?: number },
-        any
+        Array<{
+          _creationTime: number;
+          _id: string;
+          muxEventId?: string;
+          objectId?: string;
+          objectType?: string;
+          occurredAtMs?: number;
+          raw: Record<string, any>;
+          receivedAtMs: number;
+          type: string;
+          verified: boolean;
+        }>
       >;
       listUploads: FunctionReference<
         "query",
         "internal",
         { limit?: number },
-        any
+        Array<{
+          _creationTime: number;
+          _id: string;
+          assetId?: string;
+          corsOrigin?: string;
+          createdAtMs: number;
+          deletedAtMs?: number;
+          error?: Record<string, any>;
+          muxUploadId: string;
+          raw: Record<string, any>;
+          status?: string;
+          timeoutSeconds?: number;
+          updatedAtMs: number;
+          uploadUrl?: string;
+        }>
       >;
     };
     sync: {
@@ -119,43 +232,43 @@ export declare const components: {
         "mutation",
         "internal",
         { muxAssetId: string },
-        any
+        string | null
       >;
       markLiveStreamDeletedPublic: FunctionReference<
         "mutation",
         "internal",
         { muxLiveStreamId: string },
-        any
+        string | null
       >;
       markUploadDeletedPublic: FunctionReference<
         "mutation",
         "internal",
         { muxUploadId: string },
-        any
+        string | null
       >;
       recordWebhookEventPublic: FunctionReference<
         "mutation",
         "internal",
         { event: Record<string, any>; verified: boolean },
-        any
+        { alreadyProcessed: boolean; eventDocId: string }
       >;
       upsertAssetFromPayloadPublic: FunctionReference<
         "mutation",
         "internal",
         { asset: Record<string, any> },
-        any
+        string
       >;
       upsertLiveStreamFromPayloadPublic: FunctionReference<
         "mutation",
         "internal",
         { liveStream: Record<string, any> },
-        any
+        string
       >;
       upsertUploadFromPayloadPublic: FunctionReference<
         "mutation",
         "internal",
         { upload: Record<string, any> },
-        any
+        string
       >;
     };
     videos: {
@@ -163,13 +276,108 @@ export declare const components: {
         "query",
         "internal",
         { muxAssetId: string; userId?: string },
-        any
+        null | {
+          asset: {
+            _creationTime: number;
+            _id: string;
+            aspectRatio?: string;
+            createdAtMs: number;
+            deletedAtMs?: number;
+            durationSeconds?: number;
+            liveStreamId?: string;
+            maxStoredFrameRate?: number;
+            maxStoredResolution?: string;
+            muxAssetId: string;
+            passthrough?: string;
+            playbackIds?: Array<{ id: string; policy?: string }>;
+            raw: Record<string, any>;
+            status?: string;
+            tracks?: Array<{
+              id?: string;
+              languageCode?: string;
+              name?: string;
+              status?: string;
+              textType?: string;
+              type?: string;
+            }>;
+            updatedAtMs: number;
+            uploadId?: string;
+          };
+          metadata:
+            | {
+                _creationTime: number;
+                _id: string;
+                createdAtMs: number;
+                custom?: Record<string, any>;
+                description?: string;
+                muxAssetId: string;
+                tags?: Array<string>;
+                title?: string;
+                updatedAtMs: number;
+                userId: string;
+                visibility?: "private" | "unlisted" | "public";
+              }
+            | null
+            | Array<{
+                _creationTime: number;
+                _id: string;
+                createdAtMs: number;
+                custom?: Record<string, any>;
+                description?: string;
+                muxAssetId: string;
+                tags?: Array<string>;
+                title?: string;
+                updatedAtMs: number;
+                userId: string;
+                visibility?: "private" | "unlisted" | "public";
+              }>;
+        }
       >;
       listVideosForUser: FunctionReference<
         "query",
         "internal",
         { limit?: number; userId: string },
-        any
+        Array<{
+          asset: {
+            _creationTime: number;
+            _id: string;
+            aspectRatio?: string;
+            createdAtMs: number;
+            deletedAtMs?: number;
+            durationSeconds?: number;
+            liveStreamId?: string;
+            maxStoredFrameRate?: number;
+            maxStoredResolution?: string;
+            muxAssetId: string;
+            passthrough?: string;
+            playbackIds?: Array<{ id: string; policy?: string }>;
+            raw: Record<string, any>;
+            status?: string;
+            tracks?: Array<{
+              id?: string;
+              languageCode?: string;
+              name?: string;
+              status?: string;
+              textType?: string;
+              type?: string;
+            }>;
+            updatedAtMs: number;
+            uploadId?: string;
+          } | null;
+          metadata: {
+            _creationTime: number;
+            _id: string;
+            createdAtMs: number;
+            custom?: Record<string, any>;
+            description?: string;
+            muxAssetId: string;
+            tags?: Array<string>;
+            title?: string;
+            updatedAtMs: number;
+            userId: string;
+            visibility?: "private" | "unlisted" | "public";
+          };
+        }>
       >;
       upsertVideoMetadata: FunctionReference<
         "mutation",
@@ -183,7 +391,7 @@ export declare const components: {
           userId: string;
           visibility?: "private" | "unlisted" | "public";
         },
-        any
+        string
       >;
     };
   };

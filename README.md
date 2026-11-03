@@ -1,6 +1,6 @@
 # Content Moderation Dashboard
 
-A content moderation dashboard for [Mux](https://mux.com) video assets. Automatically analyzes videos for sexual and violent content using the [Mux Robots API](https://docs.mux.com/api-reference/video#tag/Robots), with configurable thresholds, auto-reject rules, Q&A questions, and webhook notifications.
+A content moderation dashboard for [Mux](https://mux.com) video assets. Automatically analyzes videos for sexual and violent content using the [Mux Robots API](https://www.mux.com/docs/guides/robots) (v1), with configurable thresholds, auto-reject rules, Q&A questions, and webhook notifications.
 
 Built with [Next.js](https://nextjs.org), [Convex](https://convex.dev), and [Mux](https://mux.com).
 

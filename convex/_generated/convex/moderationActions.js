@@ -1,5 +1,5 @@
 "use node";
-import Mux from "@mux/mux-node";
+import Mux from "@mux/ts";
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -31,7 +31,7 @@ export const runModeration = internalAction({
             muxAssetId: args.muxAssetId,
         });
         try {
-            const job = await muxClient().robotsPreview.jobs.moderate.create({
+            const job = await muxClient().robots.jobs.moderate.create({
                 parameters: {
                     asset_id: args.muxAssetId,
                     thresholds: {
@@ -81,7 +81,7 @@ export const pollModeration = internalAction({
     },
     handler: async (ctx, args) => {
         try {
-            const job = await muxClient().robotsPreview.jobs.moderate.retrieve(args.robotsJobId);
+            const job = await muxClient().robots.jobs.moderate.retrieve(args.robotsJobId);
             if (job.status === "completed" && job.outputs) {
                 const outputs = job.outputs;
                 await ctx.runMutation(internal.moderation.updateResult, {
@@ -157,7 +157,7 @@ export const runAskQuestions = internalAction({
             askQuestionsStatus: "processing",
         });
         try {
-            const job = await muxClient().robotsPreview.jobs.askQuestions.create({
+            const job = await muxClient().robots.jobs.askQuestions.create({
                 parameters: {
                     asset_id: args.muxAssetId,
                     questions: questions.map((q) => ({ question: q.question })),
@@ -197,7 +197,7 @@ export const pollAskQuestions = internalAction({
     },
     handler: async (ctx, args) => {
         try {
-            const job = await muxClient().robotsPreview.jobs.askQuestions.retrieve(args.jobId);
+            const job = await muxClient().robots.jobs.askQuestions.retrieve(args.jobId);
             if (job.status === "completed" && job.outputs) {
                 const answers = job.outputs.answers.map((a) => ({
                     question: a.question,
@@ -277,7 +277,7 @@ export const runSummary = internalAction({
             summaryStatus: "processing",
         });
         try {
-            const job = await muxClient().robotsPreview.jobs.summarize.create({
+            const job = await muxClient().robots.jobs.summarize.create({
                 parameters: {
                     asset_id: args.muxAssetId,
                 },
@@ -306,7 +306,7 @@ export const pollSummary = internalAction({
     },
     handler: async (ctx, args) => {
         try {
-            const job = await muxClient().robotsPreview.jobs.summarize.retrieve(args.jobId);
+            const job = await muxClient().robots.jobs.summarize.retrieve(args.jobId);
             if (job.status === "completed" && job.outputs) {
                 const outputs = job.outputs;
                 await ctx.runMutation(internal.moderation.updateSummary, {

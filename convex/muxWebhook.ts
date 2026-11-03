@@ -1,6 +1,6 @@
 "use node";
 
-import Mux from "@mux/mux-node";
+import Mux from "@mux/ts";
 import { internalAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { v } from "convex/values";
@@ -84,10 +84,10 @@ export const ingestMuxWebhook = internalAction({
         process.env.MUX_WEBHOOK_SECRET
       ),
     });
-    const event = mux.webhooks.unwrap(
+    const event = (await mux.webhooks.unwrap(
       args.rawBody,
       normalizeHeaders(args.headers)
-    ) as unknown as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
 
     await ctx.runMutation(components.mux.sync.recordWebhookEventPublic, {
       event,

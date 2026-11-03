@@ -1,6 +1,6 @@
 "use node";
 
-import Mux from "@mux/mux-node";
+import Mux from "@mux/ts";
 import { internalAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { v } from "convex/values";
