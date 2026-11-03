@@ -42,7 +42,9 @@ export function ConfigurationModal({
 
   // Sync local form state from the server whenever settings change. Adjusting
   // state during render (instead of in an effect) avoids an extra render pass.
-  const [syncedSettings, setSyncedSettings] = useState(settings);
+  // Seeded with undefined (not `settings`) so the first render that has data
+  // always hydrates the form, even when the query is already cached.
+  const [syncedSettings, setSyncedSettings] = useState<typeof settings>(undefined);
   if (settings && settings !== syncedSettings) {
     setSyncedSettings(settings);
     setLocal({
